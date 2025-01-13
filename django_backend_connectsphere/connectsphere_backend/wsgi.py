@@ -1,5 +1,5 @@
 """
-WSGI config for connectsphere_authentication project.
+WSGI config for connectsphere_backend project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'connectsphere_authentication.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'connectsphere_backend.settings')
 
 application = get_wsgi_application()

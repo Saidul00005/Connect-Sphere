@@ -1,5 +1,5 @@
 """
-URL configuration for connectsphere_authentication project.
+URL configuration for connectsphere_backend project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/5.1/topics/http/urls/
@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 
 # Import your custom admin configuration
-import connectsphere_authentication.admin_site
+import connectsphere_backend.admin_site
 
 urlpatterns = [
     path('admin/', admin.site.urls),
