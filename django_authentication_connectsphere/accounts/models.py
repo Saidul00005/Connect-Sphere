@@ -14,9 +14,10 @@ class Role(models.Model):
     def __str__(self):
         return self.name
 
+
 class User(AbstractUser):
     email = models.EmailField(unique=True)
-    role = models.ForeignKey(Role, on_delete=models.PROTECT)
+    role = models.ForeignKey(Role, on_delete=models.PROTECT,default=3)
     is_approved = models.BooleanField(default=False)
     approved_by = models.ForeignKey('self', null=True, on_delete=models.SET_NULL)
     is_active = models.BooleanField(default=True)
