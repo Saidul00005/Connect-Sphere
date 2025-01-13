@@ -82,7 +82,7 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
 
-CORS_ALLOWED_ORIGINS =[] #os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
+CORS_ALLOWED_ORIGINS =[] #\os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
 
 
 TEMPLATES = [

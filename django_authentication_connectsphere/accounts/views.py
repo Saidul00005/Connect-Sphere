@@ -17,7 +17,8 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def approve_user(self, request, pk=None):
-        if request.user.role.name not in ['CEO', 'MANAGER']:
+        valid_roles = ['CEO', 'MANAGER', 'EMPLOYEE']  # Add all valid roles
+        if request.user.role.name not in valid_roles:
             return Response({'error': 'Unauthorized'}, 
                           status=status.HTTP_403_FORBIDDEN)
         

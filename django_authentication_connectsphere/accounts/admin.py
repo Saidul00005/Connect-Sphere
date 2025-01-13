@@ -14,6 +14,14 @@ class CustomUserAdmin(UserAdmin):
         ('Role Information', {'fields': ('role',)}),  # Adding the role field here
     )
 
+    # Custom form for adding new users with all required fields
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('email', 'username', 'password1', 'password2', 'role', 'profile_picture','is_approved','approved_by', 'is_active', 'is_staff', 'is_superuser')}
+        ),
+    )
+
     def approve_users(self, request, queryset):
         queryset.update(is_approved=True)
     approve_users.short_description = "Mark selected users as approved"
