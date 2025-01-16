@@ -25,6 +25,6 @@ urlpatterns = [
 
     #app-specific URLs
     path('api/accounts/', include('accounts.urls')), 
-    path('api/employees/', include('employees.urls')),  
+    path('api/', include('employees.urls')),  
     path('api/chat/', include('chat.urls')), 
 ]

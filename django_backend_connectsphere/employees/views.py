@@ -8,6 +8,9 @@ from .serializers import (
     EmployeeSerializer,
     EmployeeDocumentSerializer
 )
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import NotFound
+
 
 class DepartmentViewSet(viewsets.ModelViewSet):
     queryset = Department.objects.all()
@@ -77,3 +80,27 @@ class EmployeeViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(employee)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def profile(self, request):
+        try:
+            # Get the logged-in user's employee profile
+            employee = Employee.objects.get(user=request.user)
+        except Employee.DoesNotExist:
+            raise NotFound('Employee profile not found for the logged-in user.')
+
+        # Fetch the documents associated with the employee
+        documents = EmployeeDocument.objects.filter(employee=employee)
+
+        # Serialize the employee details and documents
+        employee_serializer = self.get_serializer(employee)
+        document_serializer = EmployeeDocumentSerializer(documents, many=True)
+
+        # Return both in the response
+        return Response({
+            'employee_details': employee_serializer.data,
+            'employee_documents': document_serializer.data
+        })
+
+
+

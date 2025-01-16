@@ -9,7 +9,7 @@ class RoleSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'role', 
+        fields = ['id', 'email', 'first_name', 'last_name', 'role',
                  'is_approved', 'is_active', 'profile_picture']
         read_only_fields = ['is_approved', 'approved_by']
 

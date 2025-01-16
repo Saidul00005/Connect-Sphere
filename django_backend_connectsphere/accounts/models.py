@@ -17,7 +17,7 @@ class Role(models.Model):
 
 class User(AbstractUser):
     email = models.EmailField(unique=True)
-    role = models.ForeignKey(Role, on_delete=models.PROTECT,default=3)
+    role = models.ForeignKey(Role, on_delete=models.PROTECT, null=True, blank=True)
     is_approved = models.BooleanField(default=False)
     approved_by = models.ForeignKey('self', null=True, on_delete=models.SET_NULL)
     is_active = models.BooleanField(default=True)
@@ -25,3 +25,8 @@ class User(AbstractUser):
     
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
+
+    def save(self, *args, **kwargs):
+        if not self.role:
+            self.role = Role.objects.get(name='EMPLOYEE')
+        super().save(*args, **kwargs)

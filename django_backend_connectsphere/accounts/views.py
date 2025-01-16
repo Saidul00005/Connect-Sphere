@@ -91,42 +91,42 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 
-class UserInfoView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+# class UserInfoView(APIView):
+#     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
-        try:
-            # Get the JWT token from the request header
-            token = request.headers.get('Authorization')
-            if token is None:
-                return Response({'detail': 'Token is required'}, status=400)
-            if token.startswith('Bearer '):
-                token = token[7:]
+#     def get(self, request, *args, **kwargs):
+#         try:
+#             # Get the JWT token from the request header
+#             token = request.headers.get('Authorization')
+#             if token is None:
+#                 return Response({'detail': 'Token is required'}, status=400)
+#             if token.startswith('Bearer '):
+#                 token = token[7:]
             
-            # Decode and validate the token (verify it exists and is valid)
-            UntypedToken(token)
-            # User gets validated automatically via JWTAuthentication in headers
-            user = request.user  # 'request.user' is set by JWTAuthentication
+#             # Decode and validate the token (verify it exists and is valid)
+#             UntypedToken(token)
+#             # User gets validated automatically via JWTAuthentication in headers
+#             user = request.user  # 'request.user' is set by JWTAuthentication
 
-            # Now, fetch user details from the database (You can avoid this if you're fine with a limited set of data)
-            user_detail = User.objects.get(id=user.id)
+#             # Now, fetch user details from the database (You can avoid this if you're fine with a limited set of data)
+#             user_detail = User.objects.get(id=user.id)
 
-            # Return desired fields: Full user details with more than just what's in the session
-            response_data = {
-                'id': user.id,
-                'email': user.email,
-                'username': user.username,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'is_active': user_detail.is_active,
-                'role': user_detail.role.name,
-                'profile_picture': user_detail.profile_picture.url if user_detail.profile_picture else None,
-                'date_joined': user_detail.date_joined,
-            }
+#             # Return desired fields: Full user details with more than just what's in the session
+#             response_data = {
+#                 'id': user.id,
+#                 'email': user.email,
+#                 'username': user.username,
+#                 'first_name': user.first_name,
+#                 'last_name': user.last_name,
+#                 'is_active': user_detail.is_active,
+#                 'role': user_detail.role.name,
+#                 'profile_picture': user_detail.profile_picture.url if user_detail.profile_picture else None,
+#                 'date_joined': user_detail.date_joined,
+#             }
 
-            return Response(response_data)
+#             return Response(response_data)
         
-        except InvalidToken:
-            return Response({'detail': 'Invalid or expired token'}, status=401)
-        except User.DoesNotExist:
-            return Response({'detail': 'User not found'}, status=404)
+#         except InvalidToken:
+#             return Response({'detail': 'Invalid or expired token'}, status=401)
+#         except User.DoesNotExist:
+#             return Response({'detail': 'User not found'}, status=404)
