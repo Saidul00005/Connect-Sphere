@@ -5,20 +5,26 @@ from .models import User, Role
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
     model = User
-    list_display = ('email', 'username', 'role', 'profile_picture', 'is_approved', 'approved_by', 'is_active', 'is_staff', 'is_superuser')
+    list_display = ('id','email', 'username','first_name', 'last_name', 'role', 'profile_picture', 'is_approved', 'approved_by', 'is_active', 'is_staff', 'is_superuser')
     list_filter = ('role', 'is_approved', 'is_active', 'is_staff', 'is_superuser')
     search_fields = ('email', 'username', 'role__name', 'is_approved')
     ordering = ('email',)
     actions = ['approve_users']
-    fieldsets = UserAdmin.fieldsets + (
+    # Fieldsets for editing users
+    fieldsets = (
+        (None, {'fields': ('email', 'username', 'password')}),
+        ('Personal Info', {'fields': ('first_name', 'last_name', 'profile_picture')}),  # Add profile_picture here
+        ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
+        ('Important dates', {'fields': ('last_login', 'date_joined')}),
         ('Role Information', {'fields': ('role',)}),  # Adding the role field here
+        ('Approval Information', {'fields': ('is_approved', 'approved_by')}),  # Adding approval fields here
     )
 
     # Custom form for adding new users with all required fields
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'username', 'password1', 'password2', 'role', 'profile_picture','is_approved','approved_by', 'is_active', 'is_staff', 'is_superuser')}
+            'fields': ('email', 'username','first_name', 'last_name', 'password1', 'password2', 'role', 'profile_picture','is_approved','approved_by', 'is_active', 'is_staff', 'is_superuser')}
         ),
     )
 
