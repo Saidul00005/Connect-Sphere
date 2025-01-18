@@ -11,5 +11,4 @@ urlpatterns = [
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('pytoken/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('login/', CustomTokenObtainPairView.as_view(), name='custom_token_obtain_pair'),
-    # path('user_info/', UserInfoView.as_view(), name='user_info'),
 ]

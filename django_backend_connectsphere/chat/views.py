@@ -153,8 +153,7 @@ class MessageViewSet(viewsets.ModelViewSet):
         # Return the serialized message in the response
         return Response(
             {
-                'message': 'Message deleted successfully',
-                'deleted_message': serializer.data
+                'message': 'Message deleted successfully'
             },
             status=status.HTTP_200_OK
         )
