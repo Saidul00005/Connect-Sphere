@@ -31,3 +31,13 @@ class MessageSerializer(serializers.ModelSerializer):
             'is_deleted': {'read_only': True},  # Make is_deleted read-only (if needed)
             'shared_with': {'required': False}  # Make shared_with optional
         }
+
+
+class MessageDeleteSerializer(serializers.Serializer):
+    room = serializers.IntegerField(required=True)
+
+    def validate_room(self, value):
+        # Check if the room exists
+        if not ChatRoom.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Room not found")
+        return value
