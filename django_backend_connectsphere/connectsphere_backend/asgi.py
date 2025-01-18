@@ -1,5 +1,5 @@
 """
-ASGI config for connectsphere_authentication project.
+ASGI config for connectsphere_backend project.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'connectsphere_authentication.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'connectsphere_backend.settings')
 
 application = get_asgi_application()
