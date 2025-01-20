@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
+
 # Import your custom admin configuration
 import connectsphere_backend.admin_site
 

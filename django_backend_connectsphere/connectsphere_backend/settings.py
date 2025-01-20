@@ -82,8 +82,8 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
 
-CORS_ALLOWED_ORIGINS =['http://192.168.1.7', 'http://localhost', 'http://127.0.0.1',]   
-
+# CORS_ALLOWED_ORIGINS =['http://192.168.1.7', 'http://localhost', 'http://127.0.0.1',]   
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') 
 
 TEMPLATES = [
     {
@@ -116,7 +116,7 @@ DATABASES = {
         'HOST': os.getenv('DATABASE_HOST'), 
         'PORT': int(os.getenv('DATABASE_PORT')), 
         'OPTIONS': {
-            'sslmode': 'require',  
+            'sslmode':os.getenv('DATABASE_SSL_MODE') ,  
         },
     }
 }
@@ -156,7 +156,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = os.getenv('STATIC_ROOT')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
