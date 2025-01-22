@@ -9,7 +9,7 @@ export interface User {
   last_name: string;
   role: string;
   is_active: boolean;
-  profile_picture: null;
+  profile_picture: string;
   token: string;
   refreshToken: string;
 }

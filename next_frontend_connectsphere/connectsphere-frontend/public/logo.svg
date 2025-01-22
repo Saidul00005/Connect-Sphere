@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120" fill="none">
+  <!-- Main Sphere -->
+  <path d="M60 110C89.8233 110 114 85.8233 114 56C114 26.1767 89.8233 2 60 2C30.1767 2 6 26.1767 6 56C6 85.8233 30.1767 110 60 110Z" fill="url(#sphereGradient)" stroke="#2ECC71" stroke-width="4"/>
+  
+  <!-- Connection Lines -->
+  <path d="M30 40L90 72M30 72L90 40M42 22L78 90M78 22L42 90" stroke="#2ECC71" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Central Node -->
+  <circle cx="60" cy="56" r="8" fill="#2ECC71"/>
+  
+  <!-- Text -->
+  <text x="50%" y="105" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold" fill="#2ECC71">CONNECT SPHERE</text>
+  
+  <defs>
+    <linearGradient id="sphereGradient" x1="60" y1="2" x2="60" y2="110" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2ECC71" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#2ECC71" stop-opacity="0.05"/>
+    </linearGradient>
+  </defs>
+</svg>

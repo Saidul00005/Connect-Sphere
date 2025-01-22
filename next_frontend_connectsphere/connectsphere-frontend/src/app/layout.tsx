@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/custom/Theme-provider";
-
+import NextAuthProvider from "@/components/custom/next-auth/NextAuthProvider";
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { Toaster } from "@/components/ui/toaster";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,11 +22,16 @@ export const metadata: Metadata = {
   description: "Connect Sphere - A powerful microservice for employee communication, featuring real-time chat, role-based access, and efficient interaction tools.",
 };
 
-export default function RootLayout({
+
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
+  const session = await getServerSession(authOptions); // Fetch the session server-side
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -35,7 +43,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <NextAuthProvider session={session}>
+            {children}
+            <Toaster />
+          </NextAuthProvider>
         </ThemeProvider>
       </body>
     </html >

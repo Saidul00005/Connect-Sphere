@@ -4,6 +4,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { signOut } from "next-auth/react";
 import { User, SessionExtended, JWT } from "@/app/api/auth/types";
 import type { NextAuthOptions } from "next-auth"
+import axios from "axios";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -19,21 +20,21 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Email, Password, and Role are required.");
         }
         try {
-          const res = await fetch("http://127.0.0.1:8000/api/accounts/login/", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
+          const response = await axios.post(
+            `${process.env.BACKEND_URL}/api/accounts/login/`,
+            {
               email: credentials.email,
               password: credentials.password,
               role: credentials.role,
-            }),
-          });
+            },
+            {
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
 
-          const userResponse = await res.json();
-
-          if (!res.ok) {
-            throw new Error("Failed to log in: Invalid credentials or server error.");
-          }
+          const userResponse = response.data;
 
           if (!userResponse.access || !userResponse.refresh || !userResponse.user) {
             throw new Error("Invalid response from backend: Missing user, access token, or refresh token.");
@@ -53,12 +54,10 @@ export const authOptions: NextAuthOptions = {
           };
         } catch (error) {
           let errorMessage = "Failed to authenticate.";
-          if (error instanceof Error) {
+          if (axios.isAxiosError(error)) {
+            errorMessage = error.response?.data?.error || error.message;
+          } else if (error instanceof Error) {
             errorMessage = error.message;
-          } else if (typeof error === "string") {
-            errorMessage = error;
-          } else if (error && typeof error === "object" && "message" in error) {
-            errorMessage = String(error.message);
           }
           console.error("Authorization error:", errorMessage);
           throw new Error(errorMessage);
@@ -67,7 +66,7 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   pages: {
-    signIn: "auth/logIn",
+    signIn: "/logIn",
   },
   session: {
     strategy: "jwt",
@@ -89,23 +88,39 @@ export const authOptions: NextAuthOptions = {
       if (token.accessTokenExpiry && typeof token.accessTokenExpiry === "number") {
         if (Date.now() > token.accessTokenExpiry - 10 * 60 * 1000) {
           try {
-            const res = await fetch("http://127.0.0.1:8000/api/accounts/pytoken/refresh/", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ refresh: token.refreshToken }),
-            });
+            const response = await axios.post(
+              `${process.env.BACKEND_URL}/api/accounts/pytoken/refresh/`,
+              { refresh: token.refreshToken },
+              {
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              }
+            );
 
-            if (!res.ok) {
-              const errorResponse = await res.json();
-              const errorMessage = errorResponse?.error || res.statusText || "Unknown error";
-              throw new Error(`Failed to refresh access token: ${errorMessage} (Status: ${res.status})`);
-            }
-
-            const data = await res.json();
-            token.token = data.access;
+            token.token = response.data.access;
             token.accessTokenExpiry = Date.now() + 50 * 60 * 1000;
           } catch (error) {
-            console.error("Error refreshing access token:", error);
+            console.error("Error refreshing access token:");
+
+            if (axios.isAxiosError(error)) {
+              const errorMessage = error.response?.data?.detail ||
+                error.response?.data?.error ||
+                error.message ||
+                "Failed to refresh token";
+              console.error("Axios error details:", {
+                status: error.response?.status,
+                data: error.response?.data,
+              });
+              throw new Error(`Session expired: ${errorMessage}`);
+            }
+
+            if (error instanceof Error) {
+              console.error("Generic error:", error.message);
+              throw new Error(`Session expired: ${error.message}`);
+            }
+
+            console.error("Unknown error type:", error);
             token = {} as JWT;
             await signOut({ redirect: false });
             throw new Error("Session expired. Please log in again.");
@@ -126,7 +141,7 @@ export const authOptions: NextAuthOptions = {
       return session as SessionExtended;
     },
     async redirect({ url, baseUrl }) {
-      if (url.startsWith("/") || url.startsWith(baseUrl)) {
+      if (url.startsWith("/dashboard") || url.startsWith(baseUrl)) {
         return url;
       }
       return baseUrl;
@@ -135,4 +150,6 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 };
 
-export default NextAuth(authOptions)
+const handler = NextAuth(authOptions);
+
+export { handler as GET, handler as POST };

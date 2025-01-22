@@ -3,7 +3,8 @@ import type * as React from "react"
 import {
   Users,
   MessageCircle,
-  User
+  User,
+  Globe,
 } from "lucide-react"
 
 import { NavMain } from "@/app/dashboard/components/navbar/nav-main"
@@ -16,37 +17,9 @@ import {
   SidebarGroupLabel,
 } from "@/components/ui/sidebar"
 import { ThemeModeToggle } from "@/components/custom/ThemeSwitcher"
+import Image from "next/image"
 
 const data = {
-  items: [
-    {
-      title: "Collegues",
-      url: "#",
-      icon: Users,
-    },
-  ],
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  teams: [
-    {
-      name: "Acme Inc",
-      logo: '',
-      plan: "Enterprise",
-    },
-    {
-      name: "Acme Corp.",
-      logo: '',
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: '',
-      plan: "Free",
-    },
-  ],
   navMain: [
     {
       title: "Profile",
@@ -56,15 +29,15 @@ const data = {
       items: [
         {
           title: "User Profile",
-          url: "#",
+          url: "/dashboard/profile",
         },
         {
           title: "Employee Profile",
-          url: "#",
+          url: "/dashboard/employee",
         },
         {
           title: "Documents",
-          url: "#",
+          url: "/dashboard/documents",
         },
       ],
     },
@@ -75,28 +48,45 @@ const data = {
       items: [
         {
           title: "Chat History",
-          url: "#",
+          url: "/dashboard/chats",
         },
         {
           title: "Create Chat room",
-          url: "#",
+          url: "/dashboard/chat-room",
         },
         {
           title: "Join Chat room",
-          url: "#",
+          url: "/dashboard/join-chat-room",
         },
       ],
     },
   ],
+  items: [
+    {
+      title: "Collegues",
+      url: "/dashboard/collegues",
+      icon: Users,
+    },
+  ],
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({ collapsed, ...props }: React.ComponentProps<typeof Sidebar> & { collapsed?: boolean }) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <div className="flex justify-end p-2">
-          <ThemeModeToggle />
-        </div>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <div className="flex gap-2 ml-1">
+                <Image src="/logo.svg" alt="Connect Sphere Logo" width={20} height={40} />
+                <span className="font-semibold">Connect Sphere</span>
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <ThemeModeToggle />
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
@@ -119,7 +109,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
