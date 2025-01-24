@@ -9,6 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import Link from "next/link"
 
 export function DynamicBreadcrumb() {
   const pathname = usePathname()
@@ -26,7 +27,7 @@ export function DynamicBreadcrumb() {
     <Breadcrumb>
       <BreadcrumbList>
         <BreadcrumbItem>
-          <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
+          <BreadcrumbLink asChild><Link href='/dashboard'>Dashboard</Link></BreadcrumbLink>
         </BreadcrumbItem>
         {paths.slice(1).map((path, index) => {
           const href = `/dashboard/${paths.slice(1, index + 2).join("/")}`
@@ -39,7 +40,7 @@ export function DynamicBreadcrumb() {
                 {isLast ? (
                   <BreadcrumbPage>{formatPath(path)}</BreadcrumbPage>
                 ) : (
-                  <BreadcrumbLink href={href}>{formatPath(path)}</BreadcrumbLink>
+                  <BreadcrumbLink asChild><Link href={href}>{formatPath(path)}</Link></BreadcrumbLink>
                 )}
               </BreadcrumbItem>
             </React.Fragment>

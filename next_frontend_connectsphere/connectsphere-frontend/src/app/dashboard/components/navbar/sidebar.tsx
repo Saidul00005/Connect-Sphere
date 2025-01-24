@@ -3,7 +3,8 @@ import type * as React from "react"
 import {
   Users,
   MessageCircle,
-  User
+  User,
+  Globe
 } from "lucide-react"
 
 import { NavMain } from "@/app/dashboard/components/navbar/nav-main"
@@ -15,15 +16,16 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
 } from "@/components/ui/sidebar"
-import { ThemeModeToggle } from "@/components/custom/ThemeSwitcher"
 import Image from "next/image"
 import Link from "next/link"
+import { ThemeModeToggleDashboard } from "@/components/custom/ThemeSwitcherDashboard"
+import { useSidebar } from "@/components/ui/sidebar"
 
 const data = {
   navMain: [
     {
       title: "Profile",
-      url: "#",
+      url: "/dashboard/profile",
       icon: User,
       isActive: true,
       items: [
@@ -36,14 +38,14 @@ const data = {
           url: "/dashboard/profile/employee-profile",
         },
         {
-          title: "Documents",
+          title: "Employee Documents",
           url: "/dashboard/profile/employee-documents",
         },
       ],
     },
     {
       title: "Chat",
-      url: "#",
+      url: "/dashboard/chats",
       icon: MessageCircle,
       items: [
         {
@@ -70,21 +72,21 @@ const data = {
   ],
 }
 
-export function AppSidebar({ collapsed, ...props }: React.ComponentProps<typeof Sidebar> & { collapsed?: boolean }) {
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+
+  const { isMobile, setOpenMobile } = useSidebar()
+
   return (
-    <Sidebar collapsible="icon" {...props}>
+    <Sidebar collapsible='offcanvas' {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
-              <div className="flex gap-2 ml-1">
-                <Image src="/logo.svg" alt="Connect Sphere Logo" width={20} height={40} />
+              <Link href="/dashboard" onClick={() => isMobile && setOpenMobile(false)}>
+                <Globe />
                 <span className="text-lg font-semibold">Connect Sphere</span>
-              </div>
+              </Link>
             </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <ThemeModeToggle />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
@@ -93,11 +95,11 @@ export function AppSidebar({ collapsed, ...props }: React.ComponentProps<typeof 
         <SidebarGroup>
           <SidebarGroupLabel>Company</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu >
               {data.items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <Link href={item.url}>
+                  <SidebarMenuButton asChild tooltip={item.title}>
+                    <Link href={item.url} onClick={() => isMobile && setOpenMobile(false)}>
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>
@@ -109,10 +111,11 @@ export function AppSidebar({ collapsed, ...props }: React.ComponentProps<typeof 
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
+        <ThemeModeToggleDashboard />
         <NavUser />
       </SidebarFooter>
       <SidebarRail />
-    </Sidebar>
+    </Sidebar >
   )
 }
 

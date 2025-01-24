@@ -92,7 +92,7 @@ export default function LoginPage() {
 
       <main className="flex-grow flex items-center justify-center px-4">
         <div className="w-full max-w-md p-8 bg-card text-card-foreground shadow-lg rounded-lg">
-          <h1 className="text-3xl font-bold mb-6 text-center">Login</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold mb-6 text-center">Login</h1>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
@@ -143,12 +143,13 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" size='sm' className="w-full" disabled={isLoading}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Login"}
               </Button>
               <Button
                 type="button" // Important: Set type to "button" to prevent form submission
                 variant="outline"
+                size="sm"
                 className="w-full"
                 onClick={() => form.reset()}
               >

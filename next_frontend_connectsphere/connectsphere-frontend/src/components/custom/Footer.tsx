@@ -2,7 +2,7 @@ import Link from "next/link"
 
 export default function Footer() {
   return (
-    <footer className="bg-secondary/10 text-secondary-foreground py-8 px-4">
+    <footer className="text-sm md:text-md bg-secondary/10 text-secondary-foreground py-8 px-4">
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center">
         <div className="text-center md:text-left mb-4 md:mb-0">
           <p>&copy; 2024 Connect Sphere™. All Rights Reserved.</p>

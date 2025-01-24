@@ -27,14 +27,14 @@ export default function Home() {
       <Header />
 
       <main className="flex-grow flex flex-col items-center justify-center px-4 text-center">
-        <h1 className="text-5xl font-extrabold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+        <h1 className="text-2xl md:text-3xl lg:text-5xl font-extrabold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
           Welcome to Connect Sphere
         </h1>
-        <p className="text-xl text-muted-foreground max-w-2xl mb-8">
+        <p className="text-md md:text-lg lg:text-xl text-muted-foreground max-w-2xl mb-8">
           A powerful microservice for employee communication, featuring real-time chat, role-based access, and efficient
           interaction tools.
         </p>
-        <Button onClick={() => router.push("/logIn")} size="lg" className="text-lg px-8 py-6">
+        <Button onClick={() => router.push("/logIn")} size="sm" className="text-lg px-8 py-6">
           Get Started
         </Button>
       </main>

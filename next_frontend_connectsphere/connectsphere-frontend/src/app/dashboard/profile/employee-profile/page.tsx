@@ -1,28 +1,46 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useAppSelector, useAppDispatch } from "@/app/redux/store"
 import { fetchProfile } from "@/app/redux/slices/profileSlice"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
+import { Eye, EyeOff } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 
 export default function EmployeeProfile() {
+  const router = useRouter()
+  const { data: session, status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      router.push("/")
+    },
+  })
+
   const dispatch = useAppDispatch()
-  const { details, loading, error } = useAppSelector((state) => state.profile)
+  const { details, loading: profileLoading, error } = useAppSelector(
+    (state) => state.profile
+  )
+  const [showId, setShowId] = useState(false)
+
   const employee = details?.employee_details
+  const fullName = employee?.user?.first_name || employee?.user?.last_name
+    ? `${employee.user.first_name} ${employee.user.last_name}`.trim()
+    : "N/A"
 
   useEffect(() => {
-    if (!employee) {
+    if (status === "authenticated" && !employee && !profileLoading) {
       dispatch(fetchProfile())
     }
-  }, [dispatch, employee])
+  }, [status, employee, profileLoading, dispatch])
 
-  const fullName =
-    employee?.user.first_name || employee?.user.last_name ? `${employee?.user?.first_name} ${employee?.user?.last_name}`.trim() : "N/A"
+  const isLoading = status === "loading" || profileLoading
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="space-y-8">
@@ -51,13 +69,21 @@ export default function EmployeeProfile() {
   if (error) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="bg-destructive/10 text-destructive px-4 py-2 rounded-lg">{error}</div>
+        <div className="bg-destructive/10 text-destructive px-4 py-2 rounded-lg">
+          {error}
+        </div>
       </div>
     )
   }
 
   if (!employee) {
-    return <div className="container mx-auto px-4 py-8">Employee not found</div>
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-destructive/10 text-destructive px-4 py-2 rounded-lg">
+          Employee profile not found
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -85,15 +111,27 @@ export default function EmployeeProfile() {
             <div className="space-y-4">
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Employee ID</span>
-                <span className="text-md font-medium">{employee.employee_id}</span>
+                <div className="flex items-center gap-2">
+                  <code className="text-md font-mono bg-muted px-2 py-1 rounded">
+                    {showId ? employee.employee_id : '••••••••'}
+                  </code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowId(!showId)}
+                    aria-label={showId ? "Hide Employee ID" : "Show Employee ID"}
+                  >
+                    {showId ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Department</span>
-                <span className="text-md font-medium">{employee.department?.name}</span>
+                <span className="text-sm md:text-md font-medium">{employee.department?.name}</span>
               </div>
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Role</span>
-                <span className="text-md font-medium">{employee.role_name}</span>
+                <span className="text-sm md:text-md font-medium">{employee.role_name}</span>
               </div>
             </div>
           </section>
@@ -104,15 +142,15 @@ export default function EmployeeProfile() {
             <div className="space-y-4">
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Contact Number</span>
-                <span className="text-md font-medium">{employee.contact_number}</span>
+                <span className="text-sm md:text-md font-medium">{employee.contact_number}</span>
               </div>
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Emergency Contact</span>
-                <span className="text-md font-medium">{employee.emergency_contact}</span>
+                <span className="text-sm md:text-md font-medium">{employee.emergency_contact}</span>
               </div>
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Address</span>
-                <span className="text-md font-medium">{employee.address}</span>
+                <span className="text-sm md:text-md font-medium">{employee.address}</span>
               </div>
             </div>
           </section>
@@ -123,11 +161,11 @@ export default function EmployeeProfile() {
             <div className="space-y-4">
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Joining Date</span>
-                <span className="text-md font-medium">{new Date(employee.joining_date).toLocaleDateString()}</span>
+                <span className="text-sm md:text-md font-medium">{new Date(employee.joining_date).toLocaleDateString()}</span>
               </div>
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Reporting Manager</span>
-                <span className="text-md font-medium">{employee.reporting_manager_name}</span>
+                <span className="text-sm md:text-md font-medium">{employee.reporting_manager_name}</span>
               </div>
             </div>
           </section>
@@ -155,11 +193,11 @@ export default function EmployeeProfile() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="flex flex-col gap-2">
               <span className="text-sm text-muted-foreground">Rating</span>
-              <span className="text-md font-medium">{employee.performance_rating} / 5</span>
+              <span className="text-sm md:text-md font-medium">{employee.performance_rating} / 5</span>
             </div>
             <div className="flex flex-col gap-2">
               <span className="text-sm text-muted-foreground">Last Review Date</span>
-              <span className="text-md font-medium">{new Date(employee.last_review_date).toLocaleDateString()}</span>
+              <span className="text-sm md:text-md font-medium">{new Date(employee.last_review_date).toLocaleDateString()}</span>
             </div>
           </div>
         </section>

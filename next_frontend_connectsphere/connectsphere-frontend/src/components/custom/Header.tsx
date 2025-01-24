@@ -1,5 +1,5 @@
 import { ThemeModeToggle } from "@/components/custom/ThemeSwitcher"
-import Image from "next/image"
+import { Globe } from "lucide-react"
 import Link from "next/link"
 
 const Header = () => {
@@ -10,13 +10,8 @@ const Header = () => {
         className="flex items-center space-x-2 hover:opacity-75 transition-opacity"
         aria-label="Go to homepage"
       >
-        <Image
-          src="/logo.svg"
-          alt="Connect Sphere Logo"
-          width={40}
-          height={40}
-        />
-        <span className="text-2xl font-bold">Connect Sphere</span>
+        <Globe />
+        <span className="text-xl md:text-2xl font-bold">Connect Sphere</span>
       </Link>
       <ThemeModeToggle />
     </header>
