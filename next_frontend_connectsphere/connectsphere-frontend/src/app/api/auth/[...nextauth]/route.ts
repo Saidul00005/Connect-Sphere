@@ -53,11 +53,16 @@ export const authOptions: NextAuthOptions = {
             refreshToken: userResponse.refresh,
           };
         } catch (error) {
-          let errorMessage = "Failed to authenticate.";
+          let errorMessage = "500: Failed to authenticate.";
           if (axios.isAxiosError(error)) {
-            errorMessage = error.response?.data?.error || error.message;
+            const status = error.response?.status || 500;
+            const detail = error.response?.data?.detail
+              || error.response?.data?.error
+              || error.message
+              || "Unknown error occurred";
+            errorMessage = `${status}: ${detail}`;
           } else if (error instanceof Error) {
-            errorMessage = error.message;
+            errorMessage = `500: ${error.message}`;
           }
           console.error("Authorization error:", errorMessage);
           throw new Error(errorMessage);
@@ -101,33 +106,27 @@ export const authOptions: NextAuthOptions = {
             token.token = response.data.access;
             token.accessTokenExpiry = Date.now() + 50 * 60 * 1000;
           } catch (error) {
-            console.error("Error refreshing access token:");
+            console.error("Token refresh error:");
 
+            let errorMessage = "500: Failed to refresh token";
             if (axios.isAxiosError(error)) {
-              const errorMessage = error.response?.data?.detail ||
-                error.response?.data?.error ||
-                error.message ||
-                "Failed to refresh token";
-              console.error("Axios error details:", {
-                status: error.response?.status,
-                data: error.response?.data,
-              });
-              throw new Error(`Session expired: ${errorMessage}`);
-            }
-
-            if (error instanceof Error) {
+              const status = error.response?.status || 500;
+              const detail = error.response?.data?.detail
+                || error.response?.data?.error
+                || error.message
+                || "Unknown refresh error";
+              errorMessage = `${status}: ${detail}`;
+              console.error(`Axios error - Status: ${status}, Detail: ${detail}`);
+            } else if (error instanceof Error) {
+              errorMessage = `500: ${error.message}`;
               console.error("Generic error:", error.message);
-              throw new Error(`Session expired: ${error.message}`);
             }
-
-            console.error("Unknown error type:", error);
             token = {} as JWT;
             await signOut({ redirect: false });
-            throw new Error("Session expired. Please log in again.");
+            throw new Error(errorMessage);
           }
         }
       }
-
       return token;
     },
     async session({ session, token }) {
@@ -141,7 +140,7 @@ export const authOptions: NextAuthOptions = {
       return session as SessionExtended;
     },
     async redirect({ url, baseUrl }) {
-      if (url.startsWith("/dashboard") || url.startsWith(baseUrl)) {
+      if (url.startsWith("/") || url.startsWith(baseUrl)) {
         return url;
       }
       return baseUrl;

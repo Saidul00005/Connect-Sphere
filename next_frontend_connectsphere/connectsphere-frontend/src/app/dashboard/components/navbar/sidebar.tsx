@@ -3,8 +3,7 @@ import type * as React from "react"
 import {
   Users,
   MessageCircle,
-  User,
-  Globe,
+  User
 } from "lucide-react"
 
 import { NavMain } from "@/app/dashboard/components/navbar/nav-main"
@@ -18,6 +17,7 @@ import {
 } from "@/components/ui/sidebar"
 import { ThemeModeToggle } from "@/components/custom/ThemeSwitcher"
 import Image from "next/image"
+import Link from "next/link"
 
 const data = {
   navMain: [
@@ -29,15 +29,15 @@ const data = {
       items: [
         {
           title: "User Profile",
-          url: "/dashboard/profile",
+          url: "/dashboard/profile/user-profile",
         },
         {
           title: "Employee Profile",
-          url: "/dashboard/employee",
+          url: "/dashboard/profile/employee-profile",
         },
         {
           title: "Documents",
-          url: "/dashboard/documents",
+          url: "/dashboard/profile/employee-documents",
         },
       ],
     },
@@ -79,7 +79,7 @@ export function AppSidebar({ collapsed, ...props }: React.ComponentProps<typeof 
             <SidebarMenuButton asChild>
               <div className="flex gap-2 ml-1">
                 <Image src="/logo.svg" alt="Connect Sphere Logo" width={20} height={40} />
-                <span className="font-semibold">Connect Sphere</span>
+                <span className="text-lg font-semibold">Connect Sphere</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -97,10 +97,10 @@ export function AppSidebar({ collapsed, ...props }: React.ComponentProps<typeof 
               {data.items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <a href={item.url}>
+                    <Link href={item.url}>
                       <item.icon />
                       <span>{item.title}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
