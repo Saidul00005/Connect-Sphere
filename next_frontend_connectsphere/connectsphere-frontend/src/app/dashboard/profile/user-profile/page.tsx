@@ -12,12 +12,6 @@ import { Button } from "@/components/ui/button"
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
-const roleMap = {
-  1: "Chief Executive Officer",
-  2: "Manager",
-  3: "Employee",
-}
-
 export default function UserProfile() {
   const router = useRouter()
   const { data: session, status } = useSession({
@@ -125,7 +119,7 @@ export default function UserProfile() {
             <div className="space-y-4">
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Role</span>
-                <span className="text-sm md:text-md font-medium">{roleMap[user?.role as keyof typeof roleMap] || "Unknown"}</span>
+                <span className="text-sm md:text-md font-medium">{user?.role || "Unknown"}</span>
               </div>
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Status</span>

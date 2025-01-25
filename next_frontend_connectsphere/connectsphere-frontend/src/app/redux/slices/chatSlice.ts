@@ -101,10 +101,13 @@ export const updateMessage = createAsyncThunk(
   'chat/updateMessage',
   async ({ messageId, roomId, content }: { messageId: number; roomId: number; content: string }, { rejectWithValue }) => {
     try {
-      const response = await axios.put(`/api/chat/messages/${messageId}?room_id=${roomId}`, { content })
-      return response.data
+      const response = await axios.put(
+        `/api/chat/messages/${messageId}?room_id=${roomId}`,
+        { room: roomId, content }
+      );
+      return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || error.message)
+      return rejectWithValue(error.response?.data || error.message);
     }
   }
 )
@@ -113,7 +116,11 @@ export const deleteMessage = createAsyncThunk(
   'chat/deleteMessage',
   async ({ messageId, roomId }: { messageId: number; roomId: number }, { rejectWithValue }) => {
     try {
-      await axios.delete(`/api/chat/messages/${messageId}?room_id=${roomId}`)
+      await axios.delete(`/api/chat/messages/${messageId}?room_id=${roomId}`, {
+        headers: {
+          "Content-Type": "application/json"
+        }
+      })
       return { messageId, roomId }
     } catch (error: any) {
       return rejectWithValue(error.response?.data || error.message)

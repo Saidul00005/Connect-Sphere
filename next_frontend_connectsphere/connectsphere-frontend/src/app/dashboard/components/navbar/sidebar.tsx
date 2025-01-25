@@ -50,15 +50,15 @@ const data = {
       items: [
         {
           title: "Chat History",
-          url: "/dashboard/chats",
+          url: "/dashboard/chat/chat-history",
         },
         {
           title: "Create Chat room",
-          url: "/dashboard/chat-room",
+          url: "/dashboard/chat/create-chat-room",
         },
         {
           title: "Join Chat room",
-          url: "/dashboard/join-chat-room",
+          url: "/dashboard/chat/join-chat-room",
         },
       ],
     },
