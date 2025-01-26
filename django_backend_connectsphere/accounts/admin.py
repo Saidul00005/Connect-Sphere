@@ -41,4 +41,3 @@ class RoleAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     ordering = ('name',)
 
-
