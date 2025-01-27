@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from .models import User, Role
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework.exceptions import AuthenticationFailed
 
 class RoleSerializer(serializers.ModelSerializer):
     class Meta:
@@ -34,3 +36,32 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         return user
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        try:
+            user = User.objects.get(email=attrs['email'])
+        except User.DoesNotExist:
+            raise AuthenticationFailed('User does not exist.')
+
+        data = super().validate(attrs)
+
+        if not user.is_approved:
+            raise AuthenticationFailed('User account is not approved yet.')
+
+        request_role = self.context['request'].data.get('role')
+        if not request_role or user.role.name != request_role:
+            raise AuthenticationFailed('Invalid role provided.')
+
+        data['user'] = {
+            'id': user.id,
+            'email': user.email,
+            'username': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'role': user.role.name,
+            'is_active': user.is_active,
+            'profile_picture': user.profile_picture.url if user.profile_picture else None, 
+        }
+
+        return data

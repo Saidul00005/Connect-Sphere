@@ -10,17 +10,15 @@ class CustomUserAdmin(UserAdmin):
     search_fields = ('email', 'username', 'role__name', 'is_approved')
     ordering = ('email',)
     actions = ['approve_users']
-    # Fieldsets for editing users
     fieldsets = (
         (None, {'fields': ('email', 'username', 'password')}),
-        ('Personal Info', {'fields': ('first_name', 'last_name', 'profile_picture')}),  # Add profile_picture here
+        ('Personal Info', {'fields': ('first_name', 'last_name', 'profile_picture')}), 
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
-        ('Role Information', {'fields': ('role',)}),  # Adding the role field here
-        ('Approval Information', {'fields': ('is_approved', 'approved_by')}),  # Adding approval fields here
+        ('Role Information', {'fields': ('role',)}),  
+        ('Approval Information', {'fields': ('is_approved', 'approved_by')}), 
     )
 
-    # Custom form for adding new users with all required fields
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
