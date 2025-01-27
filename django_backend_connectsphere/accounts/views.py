@@ -6,18 +6,34 @@ from .models import User, Role
 from .serializers import UserSerializer, RoleSerializer, UserRegistrationSerializer, CustomTokenObtainPairSerializer
 from .pagination import CustomPagination
 from rest_framework.exceptions import PermissionDenied
-
+from rest_framework_api_key.permissions import HasAPIKey
+from rest_framework.throttling import UserRateThrottle
+from rest_framework.exceptions import NotFound
+from django.http import Http404
+from django.db import models
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     pagination_class = CustomPagination
+    throttle_classes = [UserRateThrottle]
     
     def get_permissions(self):
         if self.action == 'create':
-            return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated()]
+            return [permissions.HasAPIKey()]
+        return [HasAPIKey(),permissions.IsAuthenticated()]
 
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            user = self.get_object()  
+        except Http404:
+            raise NotFound("The requested user does not exist.") 
+
+        if request.user != user :
+            raise PermissionDenied("You are not authorized to view user's information.")
+
+        serializer = self.get_serializer(user)  
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'])
     def all_users(self, request):
@@ -102,6 +118,9 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def search(self, request):
+        if request.user.role.name != 'CEO':
+            raise PermissionDenied("Only CEO can search user.")
+
         query = request.query_params.get('q', '')
         role = request.query_params.get('role', '')
         
@@ -119,10 +138,17 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({'message': 'No users found matching the search criteria.'}, 
                             status=status.HTTP_404_NOT_FOUND)
 
-            
+        paginator = CustomPagination()
+        paginated_users = paginator.paginate_queryset(users, request)
+        if paginated_users is not None:
+            serializer = self.get_serializer(paginated_users, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
         serializer = self.get_serializer(users, many=True)
         return Response(serializer.data)
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+    permission_classes = [HasAPIKey]
+    throttle_classes = [UserRateThrottle]
 

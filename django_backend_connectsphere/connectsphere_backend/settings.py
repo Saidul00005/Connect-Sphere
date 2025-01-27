@@ -43,10 +43,12 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # Third party apps
+    # Thiparty apps
     'rest_framework',
+    'rest_framework_api_key',
     'corsheaders',
     'channels',
+
     # Local apps
     'accounts',
     'employees',
@@ -73,10 +75,19 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework_api_key.permissions.HasAPIKey',
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.AnonRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'user': '200/hour',  # 200 requests per hour per user
+        'anon': '30/minute',  # 30 requests per minute for anonymous users
+    }
 
 }
 
@@ -165,3 +176,5 @@ STATIC_URL = os.getenv('STATIC_ROOT')
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+API_KEY_CUSTOM_HEADER = "HTTP_X_API_KEY"
