@@ -5,13 +5,14 @@ from django.utils.html import format_html
 class EmployeeInline(admin.TabularInline):
     model = Employee
     extra = 1
-    fields = ('employee_id', 'designation', 'department', 'reporting_manager', 'joining_date')
+    fields = ('user','employee_id', 'designation', 'department', 'reporting_manager', 'joining_date', 'contact_number', 'emergency_contact', 'address','skills','performance_rating', 'last_review_date')
+    autocomplete_fields = ['user'] 
+    readonly_fields = ('employee_id',)
 
 class DepartmentAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description', 'created_at', 'updated_at')
+    list_display = ('id','name', 'description', 'created_at', 'updated_at')
     search_fields = ('name',)
     list_filter = ('created_at',)
-
     inlines = [EmployeeInline]
 
 class EmployeeAdmin(admin.ModelAdmin):
@@ -23,10 +24,11 @@ class EmployeeAdmin(admin.ModelAdmin):
     search_fields = ('employee_id', 'user__first_name', 'user__last_name')
     ordering = ('employee_id',)
     autocomplete_fields = ['user', 'department', 'reporting_manager']
+    readonly_fields = ('employee_id',)
 
     def get_reported_to(self, obj):
         return obj.reporting_manager.get_full_name() if obj.reporting_manager else None
-    get_reported_to.admin_order_field = 'reporting_manager'  # Allows column sorting
+    get_reported_to.admin_order_field = 'reporting_manager' 
     get_reported_to.short_description = 'Reporting Manager'
 
     def save_model(self, request, obj, form, change):
@@ -35,7 +37,6 @@ class EmployeeAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
     def has_delete_permission(self, request, obj=None):
-        # Only Managers or higher can delete employees
         return request.user.role == 'Manager' or request.user.role == 'CEO'
 
     actions = ['mark_as_approved', 'mark_as_pending']

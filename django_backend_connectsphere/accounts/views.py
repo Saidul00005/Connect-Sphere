@@ -20,7 +20,7 @@ class UserViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         if self.action == 'create':
-            return [permissions.HasAPIKey()]
+            return [HasAPIKey()]
         return [HasAPIKey(),permissions.IsAuthenticated()]
 
     def retrieve(self, request, *args, **kwargs):
@@ -47,8 +47,10 @@ class UserViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(paginated_users, many=True)
             return paginator.get_paginated_response(serializer.data)
 
-        serializer = self.get_serializer(users, many=True)
-        return Response(serializer.data)
+        return Response({"error": "Unable to paginate departments."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # serializer = self.get_serializer(users, many=True)
+        # return Response(serializer.data)
 
     @action(detail=True, methods=['post'])
     def approve_user(self, request, pk=None):
@@ -112,9 +114,11 @@ class UserViewSet(viewsets.ModelViewSet):
         if paginated_users is not None:
             serializer = self.get_serializer(paginated_users, many=True)
             return paginator.get_paginated_response(serializer.data)
+
+        return Response({"error": "Unable to paginate departments."}, status=status.HTTP_400_BAD_REQUEST)
         
-        serializer = self.get_serializer(users, many=True)
-        return Response(serializer.data)
+        # serializer = self.get_serializer(users, many=True)
+        # return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
     def search(self, request):
@@ -124,7 +128,7 @@ class UserViewSet(viewsets.ModelViewSet):
         query = request.query_params.get('q', '')
         role = request.query_params.get('role', '')
         
-        users = self.queryset
+        users = self.queryset.order_by('id') 
         if query:
             users = users.filter(
                 models.Q(first_name__icontains=query) |
@@ -144,8 +148,10 @@ class UserViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(paginated_users, many=True)
             return paginator.get_paginated_response(serializer.data)
 
-        serializer = self.get_serializer(users, many=True)
-        return Response(serializer.data)
+        return Response({"error": "Unable to paginate departments."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # serializer = self.get_serializer(users, many=True)
+        # return Response(serializer.data)
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer

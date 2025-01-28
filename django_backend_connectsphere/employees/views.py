@@ -10,22 +10,148 @@ from .serializers import (
 )
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import NotFound
+from rest_framework.throttling import UserRateThrottle
+from rest_framework_api_key.permissions import HasAPIKey
+from .pagination import CustomPagination
+from rest_framework.exceptions import PermissionDenied
+from django.db.models import Count
+from django.db.models import F, Value
+from django.db.models.functions import Concat
 
 
 class DepartmentViewSet(viewsets.ModelViewSet):
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = CustomPagination
+    permission_classes = [HasAPIKey,permissions.IsAuthenticated]
+    throttle_classes = [UserRateThrottle]
 
-    def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [permissions.IsAuthenticated()]
-        return [permissions.IsAuthenticated()]
+    # def get_permissions(self):
+    #     if self.action in ['create', 'update', 'partial_update', 'destroy']:
+    #         return [HasAPIKey(),permissions.IsAuthenticated()]
+    #     return [HasAPIKey(),permissions.IsAuthenticated()]
+    
+    def list(self, request, *args, **kwargs):
+        if request.user.role.name not in ['CEO']:
+            raise PermissionDenied("You do not have permission to view department list.")
+        
+        departments = self.get_queryset().order_by('id')  
+        
+        paginator = CustomPagination()
+        paginated_departments = paginator.paginate_queryset(departments, request)
+        
+        if paginated_departments is not None:
+            serializer = self.get_serializer(paginated_departments, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
+        return Response({"error": "Unable to paginate departments."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+    def retrieve(self, request, *args, **kwargs):
+        employee = self.get_object()
+
+        if not request.user.role:
+            raise PermissionDenied("You do not have permission to view Department details.")
+        return super().retrieve(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+       return Response(
+        {"detail": "Creating department is not permitted through this route."},
+        status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    def update(self, request, *args, **kwargs):
+        return Response(
+        {"detail": "Updating department is not permitted through this route."},
+        status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+        {"detail": "Deleting department is not permitted through this route."},
+        status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    @action(detail=True, methods=['get'])
+    def department_details(self, request, pk=None):
+        department = self.get_object()
+
+        if request.user.role.name != 'CEO':
+            raise PermissionDenied("You do not have permission to view department details.")
+
+        employees = department.employee_set.all().annotate(
+            full_name=Concat(F('user__first_name'), Value(' '), F('user__last_name'))
+        ).values(
+            'id', 
+            'full_name',  
+            'designation', 
+            'performance_rating',
+        ).order_by('id')
+
+        paginator = CustomPagination()
+        paginated_employees = paginator.paginate_queryset(employees, request)
+        
+        if paginated_employees is not None:
+            employee_count = employees.count()
+            department_data = {
+                'department_id': department.id,
+                'department_name': department.name,
+                'department_description':department.description,
+                'employee_count': employee_count,
+                'employees': paginated_employees
+            }
+            return paginator.get_paginated_response(department_data)
+
+        return Response({"error": "Unable to paginate department employees."}, status=status.HTTP_400_BAD_REQUEST)
 
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = CustomPagination
+    permission_classes = [HasAPIKey,permissions.IsAuthenticated]
+    throttle_classes = [UserRateThrottle]
+
+    def list(self, request, *args, **kwargs):
+        if request.user.role.name != 'CEO':
+            raise PermissionDenied("You do not have permission to view the employee list.")
+
+        users = self.get_queryset().order_by('id')  
+        
+        paginator = CustomPagination()
+        paginated_users = paginator.paginate_queryset(users, request)
+        
+        if paginated_users is not None:
+            serializer = self.get_serializer(paginated_users, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
+        return Response({"error": "Unable to paginate employees."}, status=status.HTTP_400_BAD_REQUEST)
+
+    def retrieve(self, request, *args, **kwargs):
+        employee = self.get_object()
+
+        if not (request.user.role.name == 'CEO' or employee.user == request.user):
+            raise PermissionDenied("You do not have permission to view this employee's details.")
+
+        serializer = self.get_serializer(employee)
+        return Response(serializer.data)
+
+    def create(self, request, *args, **kwargs):
+       return Response(
+        {"detail": "Creating employees is not permitted through this route."},
+        status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    def update(self, request, *args, **kwargs):
+        return Response(
+        {"detail": "Updating employees is not permitted through this route."},
+        status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+        {"detail": "Deleting employees is not permitted through this route."},
+        status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
     def get_queryset(self):
         queryset = Employee.objects.all()
@@ -80,27 +206,6 @@ class EmployeeViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(employee)
         return Response(serializer.data)
-
-    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
-    def profile(self, request):
-        try:
-            # Get the logged-in user's employee profile
-            employee = Employee.objects.get(user=request.user)
-        except Employee.DoesNotExist:
-            raise NotFound('Employee profile not found for the logged-in user.')
-
-        # Fetch the documents associated with the employee
-        documents = EmployeeDocument.objects.filter(employee=employee)
-
-        # Serialize the employee details and documents
-        employee_serializer = self.get_serializer(employee)
-        document_serializer = EmployeeDocumentSerializer(documents, many=True)
-
-        # Return both in the response
-        return Response({
-            'employee_details': employee_serializer.data,
-            'employee_documents': document_serializer.data
-        })
 
 
 
