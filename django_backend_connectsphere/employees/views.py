@@ -14,10 +14,11 @@ from rest_framework.throttling import UserRateThrottle
 from rest_framework_api_key.permissions import HasAPIKey
 from .pagination import CustomPagination
 from rest_framework.exceptions import PermissionDenied
-from django.db.models import Count
-from django.db.models import F, Value
+from django.db.models import Count,F,Value
 from django.db.models.functions import Concat
-
+from django.utils import timezone
+from django.contrib.postgres.aggregates import ArrayAgg
+from django.db.models.functions import Coalesce
 
 class DepartmentViewSet(viewsets.ModelViewSet):
     queryset = Department.objects.all()
@@ -32,11 +33,17 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     #     return [HasAPIKey(),permissions.IsAuthenticated()]
     
     def list(self, request, *args, **kwargs):
-        if request.user.role.name not in ['CEO']:
+        if request.user.role.name != 'CEO':
             raise PermissionDenied("You do not have permission to view department list.")
         
-        departments = self.get_queryset().order_by('id')  
-        
+        departments = Department.objects.annotate(
+        employee_count=Count('employee', distinct=True),
+        designations=Coalesce(
+            ArrayAgg('employee__designation', distinct=True), 
+            Value([])
+            )
+        ).order_by('id')
+
         paginator = CustomPagination()
         paginated_departments = paginator.paginate_queryset(departments, request)
         
@@ -71,38 +78,6 @@ class DepartmentViewSet(viewsets.ModelViewSet):
         {"detail": "Deleting department is not permitted through this route."},
         status=status.HTTP_405_METHOD_NOT_ALLOWED
         )
-
-    @action(detail=True, methods=['get'])
-    def department_details(self, request, pk=None):
-        department = self.get_object()
-
-        if request.user.role.name != 'CEO':
-            raise PermissionDenied("You do not have permission to view department details.")
-
-        employees = department.employee_set.all().annotate(
-            full_name=Concat(F('user__first_name'), Value(' '), F('user__last_name'))
-        ).values(
-            'id', 
-            'full_name',  
-            'designation', 
-            'performance_rating',
-        ).order_by('id')
-
-        paginator = CustomPagination()
-        paginated_employees = paginator.paginate_queryset(employees, request)
-        
-        if paginated_employees is not None:
-            employee_count = employees.count()
-            department_data = {
-                'department_id': department.id,
-                'department_name': department.name,
-                'department_description':department.description,
-                'employee_count': employee_count,
-                'employees': paginated_employees
-            }
-            return paginator.get_paginated_response(department_data)
-
-        return Response({"error": "Unable to paginate department employees."}, status=status.HTTP_400_BAD_REQUEST)
 
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.all()
@@ -153,11 +128,63 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         status=status.HTTP_405_METHOD_NOT_ALLOWED
         )
 
+    @action(detail=True, methods=['get'])
+    def get_employee_details(self, request, pk=None):
+        employee = self.get_object()
+
+        if not request.user.role:
+            raise PermissionDenied("You do not have permission to view this employee's details.")
+
+        employee_data = {
+            'employee_id': employee.employee_id,
+            'name': employee.full_name,
+            'role':employee.role_name,
+            'designation': employee.designation,
+            'reporting_manager': employee.reporting_manager_name,
+            'joining_date': employee.joining_date,
+            'performance_rating': employee.performance_rating,
+            'last_review_date': employee.last_review_date,
+            'department': employee.department.name,
+            'contact_number': employee.contact_number,
+            'emergency_contact': employee.emergency_contact,
+            'address': employee.address,
+            'skills': employee.skills,
+        }
+
+        return Response(employee_data)
+    
+    @action(detail=True, methods=['get'])
+    def documents(self, request, pk=None):
+        employee = self.get_object()
+        
+        if not (request.user.role.name == 'CEO' or employee.user == request.user):
+            raise PermissionDenied("You do not have permission to view these documents.")
+        
+        documents = EmployeeDocument.objects.filter(employee=employee)
+        serializer = EmployeeDocumentSerializer(documents, many=True)
+        return Response(serializer.data)
+
     def get_queryset(self):
+        if self.request.user.role.name != 'CEO':
+            return Employee.objects.none()
+
         queryset = Employee.objects.all()
-        department = self.request.query_params.get('department', None)
+
+        department = self.request.query_params.get('department')
+        designation = self.request.query_params.get('designation')
+        performance_rating = self.request.query_params.get('performance_rating')
+
         if department:
             queryset = queryset.filter(department_id=department)
+        if designation:
+            queryset = queryset.filter(designation__iexact=designation.strip())
+        if performance_rating:
+            try:
+                rating = float(performance_rating)
+                queryset = queryset.filter(performance_rating=rating)
+            except ValueError:
+                raise ValidationError({"performance_rating": "Must be a numeric value."})
+
         return queryset
 
     @action(detail=True, methods=['post'])
@@ -165,10 +192,35 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         employee = self.get_object()
         document = request.FILES.get('document')
         document_type = request.data.get('document_type')
-        
+
+        user = request.user
+        allowed_document_types = ['ID_PROOF', 'ADDRESS_PROOF', 'RESUME', 'CERTIFICATE', 'OTHER']
+
+        if not (hasattr(user, 'role')):
+            raise PermissionDenied("You do not have permission to upload documents.")
+
+        is_ceo = user.role.name == 'CEO'
+        is_manager = user.role.name == 'Manager'
+
+        if is_manager:
+            try:
+                manager_employee = user.employee  
+                same_department = manager_employee.department == employee.department
+            except AttributeError:
+                same_department = False
+
+        if not (is_ceo or (is_manager and same_department)):
+            raise PermissionDenied("Only CEO or department managers can upload documents.")
+
         if not document or not document_type:
             return Response(
-                {'error': 'Both document and document_type are required'},
+                {'status': 'error', 'error': 'Both document and document_type are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if document_type not in allowed_document_types:
+            return Response(
+                {'status': 'error', 'error': f'Invalid document_type. Allowed: {allowed_document_types}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -180,23 +232,42 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         )
 
         serializer = EmployeeDocumentSerializer(document)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                'status': 'success',
+                'message': 'Document uploaded successfully',
+                'data': serializer.data
+            },
+            status=status.HTTP_201_CREATED
+        )
 
-    @action(detail=True, methods=['get'])
-    def documents(self, request, pk=None):
-        employee = self.get_object()
-        documents = EmployeeDocument.objects.filter(employee=employee)
-        serializer = EmployeeDocumentSerializer(documents, many=True)
-        return Response(serializer.data)
 
     @action(detail=True, methods=['post'])
     def update_performance(self, request, pk=None):
+
+        if not (hasattr(request.user, 'role') and request.user.role.name == 'CEO'):
+            raise PermissionDenied("Only the CEO can update performance ratings.")
+
         employee = self.get_object()
         rating = request.data.get('rating')
-        
+
         if rating is None:
             return Response(
                 {'error': 'Rating is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            rating = float(rating)
+        except (ValueError, TypeError):
+            return Response(
+                {'error': 'Rating must be a numeric value'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not (0.0 <= rating <= 5.0):
+            return Response(
+                {'error': 'Rating must be between 0.0 and 5.0'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -205,7 +276,8 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         employee.save()
 
         serializer = self.get_serializer(employee)
-        return Response(serializer.data)
-
-
+        return Response(
+        {'message': 'Performance rating updated successfully', 'employee': serializer.data},
+        status=status.HTTP_200_OK
+    )
 

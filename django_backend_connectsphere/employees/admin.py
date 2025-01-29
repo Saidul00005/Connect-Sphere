@@ -17,7 +17,7 @@ class DepartmentAdmin(admin.ModelAdmin):
 
 class EmployeeAdmin(admin.ModelAdmin):
     list_display = (
-        'employee_id', 'user', 'department', 'designation', 'reporting_manager',
+        'id','employee_id', 'user','full_name', 'department', 'designation','reporting_manager','reporting_manager_name',
         'joining_date', 'contact_number', 'emergency_contact', 'performance_rating', 'last_review_date'
     )
     list_filter = ('department', 'designation', 'performance_rating', 'last_review_date')

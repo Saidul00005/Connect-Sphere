@@ -30,6 +30,24 @@ class Employee(models.Model):
     performance_rating = models.FloatField(null=True, blank=True)
     last_review_date = models.DateField(null=True, blank=True)
 
+    @property
+    def full_name(self):
+        if self.user:
+            return f"{self.user.first_name} {self.user.last_name}"
+        return "Unknown"
+
+    @property
+    def reporting_manager_name(self):
+        if self.reporting_manager:
+            return f"{self.reporting_manager.first_name} {self.reporting_manager.last_name}"
+        return "Unknown"
+
+    @property
+    def role_name(self):
+        if self.user:
+            return f"{self.user.role.name}"
+        return "Unknown"
+
     def save(self, *args, **kwargs):
         if not self.employee_id: 
             dept_code = self.department.name.ljust(3)[:3].upper()

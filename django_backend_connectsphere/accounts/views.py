@@ -15,45 +15,64 @@ from django.db import models
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    permission_classes = [HasAPIKey,permissions.IsAuthenticated]
     pagination_class = CustomPagination
     throttle_classes = [UserRateThrottle]
-    
-    def get_permissions(self):
-        if self.action == 'create':
-            return [HasAPIKey()]
-        return [HasAPIKey(),permissions.IsAuthenticated()]
 
     def retrieve(self, request, *args, **kwargs):
         try:
-            user = self.get_object()  
+            user = self.get_object()
         except Http404:
             raise NotFound("The requested user does not exist.") 
 
-        if request.user != user :
-            raise PermissionDenied("You are not authorized to view user's information.")
+        if request.user.role.name != "CEO" and request.user != user:
+            raise PermissionDenied("You are not authorized to view this user's information.")
 
         serializer = self.get_serializer(user)  
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=['get'])
-    def all_users(self, request):
+    def list(self, request, *args, **kwargs):
         if request.user.role.name != 'CEO':
             raise PermissionDenied('Only the CEO can view all users.')
 
-        users = self.queryset.order_by('id') 
-        paginator = CustomPagination()
-        paginated_users = paginator.paginate_queryset(users, request)
+        users = self.get_queryset().order_by('id') 
+        paginator = self.pagination_class()
+        paginated_users = paginator.paginate_queryset(users, request, view=self)
+
         if paginated_users is not None:
             serializer = self.get_serializer(paginated_users, many=True)
             return paginator.get_paginated_response(serializer.data)
 
-        return Response({"error": "Unable to paginate departments."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Unable to paginate users."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # serializer = self.get_serializer(users, many=True)
-        # return Response(serializer.data)
+    def create(self, request, *args, **kwargs):
+       return Response(
+        {"detail": "Creating department is not permitted through this route."},
+        status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    def update(self, request, *args, **kwargs):
+        return Response(
+        {"detail": "Updating department is not permitted through this route."},
+        status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+        {"detail": "Deleting department is not permitted through this route."},
+        status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
     @action(detail=True, methods=['post'])
     def approve_user(self, request, pk=None):
+        try:
+            user = self.get_object() 
+        except NotFound:
+            return Response(
+                {'error': 'User not found. Cannot approve non-existent user.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
         approver_role = request.user.role.name  
         valid_roles = ['CEO', 'MANAGER']  
 
@@ -61,7 +80,6 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Only CEO or Manager can approve users.'}, 
                             status=status.HTTP_403_FORBIDDEN)
 
-        user = self.get_object() 
         user_role = user.role.name  
 
         if user == request.user:
@@ -94,7 +112,7 @@ class UserViewSet(viewsets.ModelViewSet):
             users = self.queryset.filter(is_approved=False).order_by('id')
         
         elif user_role == "MANAGER":
-            if not is_user_approved:  # Unapproved managers can't access this
+            if not is_user_approved:
                 return Response({'error': 'Access denied. Manager account not approved.'}, 
                                 status=status.HTTP_403_FORBIDDEN)
             users = self.queryset.filter(is_approved=False, role__name="EMPLOYEE")

@@ -3,9 +3,17 @@ from .models import Department, Employee, EmployeeDocument
 from accounts.serializers import UserSerializer
 
 class DepartmentSerializer(serializers.ModelSerializer):
+    employee_count = serializers.SerializerMethodField()
+    designations = serializers.SerializerMethodField()
     class Meta:
         model = Department
-        fields = ['id','name','description']
+        fields = ['id','name','description','employee_count', 'designations']
+
+    def get_employee_count(self, obj):
+        return obj.employee_count if hasattr(obj, 'employee_count') else 0
+
+    def get_designations(self, obj):
+        return obj.designations if hasattr(obj, 'designations') else []
 
 class EmployeeDocumentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -26,6 +34,9 @@ class EmployeeSerializer(serializers.ModelSerializer):
         source='employeedocument_set'
     )
 
+    reporting_manager_name = serializers.SerializerMethodField() 
+    role_name = serializers.SerializerMethodField()
+
     class Meta:
         model = Employee
         fields = '__all__'
@@ -38,10 +49,6 @@ class EmployeeSerializer(serializers.ModelSerializer):
     def get_role_name(self, obj):
         role = getattr(obj.user, 'role', None)
         return role.name if role else "No role assigned"
-
-
-    reporting_manager_name = serializers.SerializerMethodField() 
-    role_name = serializers.SerializerMethodField()
 
     def create(self, validated_data):
         department = validated_data.get('department')
