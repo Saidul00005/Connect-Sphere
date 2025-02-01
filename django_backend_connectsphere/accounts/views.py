@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import User, Role
-from .serializers import UserSerializer, RoleSerializer, UserRegistrationSerializer, CustomTokenObtainPairSerializer
+from .serializers import UserSerializer,CustomTokenObtainPairSerializer
 from .pagination import CustomPagination
 from rest_framework.exceptions import PermissionDenied
 from rest_framework_api_key.permissions import HasAPIKey
@@ -12,12 +12,17 @@ from rest_framework.exceptions import NotFound
 from django.http import Http404
 from django.db import models
 
+
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
+    queryset = User.objects.filter(is_deleted=False)
     serializer_class = UserSerializer
     permission_classes = [HasAPIKey,permissions.IsAuthenticated]
     pagination_class = CustomPagination
     throttle_classes = [UserRateThrottle]
+
+    def get_object_with_deleted(self):
+        return User.objects.get(pk=self.kwargs["pk"])  
+
 
     def retrieve(self, request, *args, **kwargs):
         try:
@@ -46,22 +51,52 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response({"error": "Unable to paginate users."}, status=status.HTTP_400_BAD_REQUEST)
 
     def create(self, request, *args, **kwargs):
-       return Response(
-        {"detail": "Creating department is not permitted through this route."},
-        status=status.HTTP_405_METHOD_NOT_ALLOWED
-        )
+        if request.user.role.name != "CEO":
+            return Response({"error": "Only CEO can create users."}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "User created successfully.", "user": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
         return Response(
-        {"detail": "Updating department is not permitted through this route."},
+        {"detail": "Updating User is not permitted through this route."},
         status=status.HTTP_405_METHOD_NOT_ALLOWED
         )
 
     def destroy(self, request, *args, **kwargs):
+        try:
+            user = self.get_object()
+        except Http404:
+            raise NotFound("The requested user does not exist.")
+
+        if request.user.role.name != "CEO":
+            raise PermissionDenied("Only the CEO can delete users.")
+
+        user.soft_delete()  
+
         return Response(
-        {"detail": "Deleting department is not permitted through this route."},
-        status=status.HTTP_405_METHOD_NOT_ALLOWED
+            {"message": f"User {user.first_name} {user.last_name} has been soft deleted."},
+            status=status.HTTP_200_OK
         )
+
+    @action(detail=True, methods=["POST"])
+    def restore(self, request, pk=None):
+        if request.user.role.name != "CEO":
+            return Response({"detail": "Only the CEO can restore users."}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            user = self.get_object_with_deleted()
+            if not user.is_deleted:
+                return Response({"message": "User is already active."}, status=status.HTTP_400_BAD_REQUEST)
+
+            user.restore()
+            return Response({"message": "User restored successfully."}, status=status.HTTP_200_OK)
+
+        except User.DoesNotExist:
+            return Response({"error": "User not found or not deleted."}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=True, methods=['post'])
     def approve_user(self, request, pk=None):
@@ -133,7 +168,7 @@ class UserViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(paginated_users, many=True)
             return paginator.get_paginated_response(serializer.data)
 
-        return Response({"error": "Unable to paginate departments."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Unable to paginate users."}, status=status.HTTP_400_BAD_REQUEST)
         
         # serializer = self.get_serializer(users, many=True)
         # return Response(serializer.data)
@@ -166,7 +201,7 @@ class UserViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(paginated_users, many=True)
             return paginator.get_paginated_response(serializer.data)
 
-        return Response({"error": "Unable to paginate departments."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Unable to paginate users."}, status=status.HTTP_400_BAD_REQUEST)
 
         # serializer = self.get_serializer(users, many=True)
         # return Response(serializer.data)
@@ -175,4 +210,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
     permission_classes = [HasAPIKey]
     throttle_classes = [UserRateThrottle]
+
+
 

@@ -2,6 +2,8 @@ from rest_framework import serializers
 from .models import User, Role
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.exceptions import AuthenticationFailed
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 
 class RoleSerializer(serializers.ModelSerializer):
     class Meta:
@@ -12,7 +14,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'email', 'first_name', 'last_name', 'role',
-                 'is_approved', 'is_active', 'profile_picture']
+                 'is_approved', 'is_active', 'profile_picture','is_deleted']
         read_only_fields = ['is_approved', 'approved_by']
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -20,7 +22,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['email', 'password', 'first_name', 'last_name', 'role']
+        fields = ['email', 'password', 'first_name', 'last_name']
 
     def validate_password(self, value):
         user = self.instance or User(**self.initial_data)
