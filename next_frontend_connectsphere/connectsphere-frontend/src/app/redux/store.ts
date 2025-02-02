@@ -2,11 +2,15 @@ import { configureStore } from '@reduxjs/toolkit';
 import { TypedUseSelectorHook, useSelector, useDispatch } from 'react-redux';
 import profileReducer from '@/app/redux/slices/profileSlice';
 import chatReducer from '@/app/redux/slices/chatSlice';
+import userProfileReducer from '@/app/redux/slices/userProfileSlice';
+import employeeListForUserReducer from '@/app/redux/slices/employeeListForUserSlice';
 
 export const store = configureStore({
   reducer: {
     profile: profileReducer,
     chat: chatReducer,
+    userProfile: userProfileReducer,
+    employees: employeeListForUserReducer
   },
 });
 

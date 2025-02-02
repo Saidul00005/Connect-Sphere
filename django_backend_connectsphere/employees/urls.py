@@ -9,7 +9,9 @@ router.register(r'employees', EmployeeViewSet)
 urlpatterns = [
     path('', include(router.urls)),
     path('employees/', EmployeeViewSet.as_view({'get': 'list'}), name='employee_list_for_CEO'), 
+    path('employees/list_employee/', EmployeeViewSet.as_view({'get': 'list_employee'}), name='employee_list_for_request_user'), 
     path('employees/<int:pk>/', EmployeeViewSet.as_view({'get': 'retrieve'}), name='employee_retrieve_for_CEO_and_requestUser'), 
+    path('employees/retrieve_by_user_id/<int:user_id>/', EmployeeViewSet.as_view({'get': 'retrieve_by_user_id'}), name='employee_profile_by_user_id_for_request_user'),
     path('employees/<int:pk>/get_employee_details/', EmployeeViewSet.as_view({'get': 'get_employee_details'}), name='employee_retrieve_for_all_users'),  
     path('employees/<int:pk>/documents/', EmployeeViewSet.as_view({'get': 'documents'}), name='employee_documents_for_CEO_and_requestUser'),
     path('employees/<int:pk>/update_performance/', EmployeeViewSet.as_view({'post': 'update_performance'}), name='update_performance_of_employee_for_CEO'),

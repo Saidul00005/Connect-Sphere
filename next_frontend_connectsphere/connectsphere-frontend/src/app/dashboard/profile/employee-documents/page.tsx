@@ -25,18 +25,19 @@ export default function EmployeeDocuments() {
   })
 
   const dispatch = useAppDispatch()
-  const { details, loading: profileLoading, error } = useAppSelector(
+  const { details, loading: employeeProfileLoading, error } = useAppSelector(
     (state) => state.profile
   )
-  const documents = details?.employee_details?.documents || []
+
+  const documents = details?.documents
 
   useEffect(() => {
-    if (status === "authenticated" && !documents && !profileLoading) {
+    if (status === "authenticated" && details === null && !employeeProfileLoading && !error) {
       dispatch(fetchProfile())
     }
-  }, [status, documents, profileLoading, dispatch])
+  }, [status, details, employeeProfileLoading, dispatch])
 
-  const isLoading = status === "loading" || profileLoading
+  const isLoading = status === "loading" || employeeProfileLoading
 
   if (isLoading) {
     return (
@@ -90,7 +91,7 @@ export default function EmployeeDocuments() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {documents.length === 0 ? (
+            {!documents || documents.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 No documents available
               </div>
@@ -101,10 +102,11 @@ export default function EmployeeDocuments() {
                     <div className="bg-primary/10 p-3 rounded-lg">
                       <FileText className="h-6 w-6 text-primary" />
                     </div>
-                    <div>
-                      <h3 className="font-medium">{doc.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {doc.type} • {new Date(doc.upload_date).toLocaleDateString()}
+                    <div className="flex flex-col">
+                      <h3 className="font-semibold text-lg">{doc.document_type_display}</h3>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {doc.description ? doc.description : "No description"} •{" "}
+                        {new Date(doc.uploaded_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
@@ -112,7 +114,7 @@ export default function EmployeeDocuments() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => window.open(doc.url, '_blank')}
+                      onClick={() => window.open(doc.document, '_blank')}
                     >
                       <Eye className="h-4 w-4 mr-2" />
                       View
@@ -120,7 +122,7 @@ export default function EmployeeDocuments() {
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() => window.open(doc.url, '_download')}
+                      onClick={() => window.open(doc.document, '_download')}
                     >
                       <Download className="h-4 w-4 mr-2" />
                       Download

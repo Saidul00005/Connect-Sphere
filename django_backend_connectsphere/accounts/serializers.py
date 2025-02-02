@@ -11,6 +11,7 @@ class RoleSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'permissions']
 
 class UserSerializer(serializers.ModelSerializer):
+    role = serializers.CharField(source='role.name')
     class Meta:
         model = User
         fields = ['id', 'email', 'first_name', 'last_name', 'role',

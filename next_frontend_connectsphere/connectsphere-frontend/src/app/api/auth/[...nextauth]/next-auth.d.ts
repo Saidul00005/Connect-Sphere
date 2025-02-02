@@ -18,6 +18,7 @@ declare module "next-auth" {
       id: string;
       email: string;
       name: string;
+      profile_picture: string;
       role: string;
       token: string;
     };

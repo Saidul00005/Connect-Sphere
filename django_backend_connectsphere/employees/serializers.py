@@ -1,6 +1,12 @@
 from rest_framework import serializers
 from .models import Department, Employee, EmployeeDocument
-from accounts.serializers import UserSerializer
+from accounts.models import User
+
+class UserSerializer(serializers.ModelSerializer):
+    role = serializers.CharField(source='role.name')
+    class Meta:
+        model = User
+        fields = ['id', 'first_name','last_name','role','profile_picture','is_approved','is_deleted']
 
 class DepartmentSerializer(serializers.ModelSerializer):
     employee_count = serializers.SerializerMethodField()
@@ -10,19 +16,37 @@ class DepartmentSerializer(serializers.ModelSerializer):
         fields = ['id','name','description','employee_count', 'designations']
 
     def get_employee_count(self, obj):
-        return obj.employee_count if hasattr(obj, 'employee_count') else 0
+        return Employee.objects.filter(department=obj).count()
 
     def get_designations(self, obj):
-        return obj.designations if hasattr(obj, 'designations') else []
+        designations = Employee.objects.filter(department=obj).values_list('designation', flat=True).distinct()
+        return list(designations)
+
+class DepartmentSerializerForEmployeeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Department
+        fields = ['id','name']
 
 class EmployeeDocumentSerializer(serializers.ModelSerializer):
+    document_type_display = serializers.SerializerMethodField()
     class Meta:
         model = EmployeeDocument
-        fields = '__all__'
+        fields = [
+            'id', 
+            'employee', 
+            'document_type', 
+            'document_type_display', 
+            'document', 
+            'uploaded_at', 
+            'description', 
+        ]
+
+    def get_document_type_display(self, obj):
+        return obj.get_document_type_display()
 
 class EmployeeSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
-    department = DepartmentSerializer(read_only=True)
+    department = DepartmentSerializerForEmployeeSerializer(read_only=True)
     department_id = serializers.PrimaryKeyRelatedField(
         queryset=Department.objects.all(),
         write_only=True,
@@ -35,7 +59,6 @@ class EmployeeSerializer(serializers.ModelSerializer):
     )
 
     reporting_manager_name = serializers.SerializerMethodField() 
-    role_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Employee

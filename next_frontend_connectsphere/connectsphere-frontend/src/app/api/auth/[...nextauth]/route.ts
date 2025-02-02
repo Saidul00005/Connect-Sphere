@@ -30,11 +30,13 @@ export const authOptions: NextAuthOptions = {
             {
               headers: {
                 "Content-Type": "application/json",
+                "X-Api-Key": process.env.BACKEND_API_KEY,
               },
             }
           );
 
           const userResponse = response.data;
+          console.log(userResponse)
 
           if (!userResponse.access || !userResponse.refresh || !userResponse.user) {
             throw new Error("Invalid response from backend: Missing user, access token, or refresh token.");
@@ -84,6 +86,7 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email;
         token.name = user.name;
         token.role = user.role;
+        token.profile_picture = user.profile_picture;
         token.token = user.token;
         token.refreshToken = user.refreshToken;
         token.accessTokenExpiry = Date.now() + 50 * 60 * 1000; // Set expiry (50 minutes)
@@ -99,6 +102,7 @@ export const authOptions: NextAuthOptions = {
               {
                 headers: {
                   "Content-Type": "application/json",
+                  "X-Api-Key": process.env.BACKEND_API_KEY
                 },
               }
             );
@@ -134,6 +138,7 @@ export const authOptions: NextAuthOptions = {
         id: token.id as string,
         email: token.email as string,
         name: token.name as string,
+        profile_picture: token.profile_picture as string,
         role: token.role as string,
         token: token.token as string,
       };

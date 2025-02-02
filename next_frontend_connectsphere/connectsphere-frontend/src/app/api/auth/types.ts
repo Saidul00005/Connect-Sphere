@@ -20,6 +20,7 @@ export interface JWT {
   email?: string;
   name?: string;
   role?: string;
+  profile_picture?: string,
   token?: string;
   refreshToken?: string;
   accessTokenExpiry?: number;
@@ -31,6 +32,7 @@ export interface SessionExtended extends DefaultSession {
     email: string;
     name: string;
     role: string;
+    profile_picture: string;
     token: string;
   };
 }

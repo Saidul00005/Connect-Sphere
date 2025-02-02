@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 import { useAppSelector, useAppDispatch } from "@/app/redux/store"
-import { fetchProfile } from "@/app/redux/slices/profileSlice"
+import { fetchUserProfile } from "@/app/redux/slices/userProfileSlice"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -21,21 +21,20 @@ export default function UserProfile() {
     },
   })
   const dispatch = useAppDispatch()
-  const { details, loading: profileLoading, error } = useAppSelector(
-    (state) => state.profile
+  const { details, loading: userProfileLoading, error } = useAppSelector(
+    (state) => state.userProfile
   )
   const [showId, setShowId] = useState(false)
 
-  const user = details?.employee_details?.user
-  const fullName = user?.first_name || user?.last_name
-    ? `${user?.first_name} ${user?.last_name}`.trim()
+  const fullName = details?.first_name || details?.last_name
+    ? `${details?.first_name} ${details?.last_name}`.trim()
     : "N/A"
 
   useEffect(() => {
-    if (status === "authenticated" && !user && !profileLoading) {
-      dispatch(fetchProfile())
+    if (status === "authenticated" && details?.id === null && !userProfileLoading && !error) {
+      dispatch(fetchUserProfile())
     }
-  }, [status, user, profileLoading, dispatch])
+  }, [status, details, userProfileLoading, error, dispatch])
 
 
   const statusBadge = (condition: boolean, text: string) => (
@@ -43,7 +42,7 @@ export default function UserProfile() {
       {text}
     </Badge>
   )
-  const isLoading = status === "loading" || profileLoading
+  const isLoading = (status === "loading" || userProfileLoading) && !error;
 
   if (isLoading) {
     return (
@@ -84,7 +83,7 @@ export default function UserProfile() {
     )
   }
 
-  if (!user) {
+  if (!details) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="bg-destructive/10 text-destructive px-4 py-2 rounded-lg">
@@ -100,12 +99,12 @@ export default function UserProfile() {
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center gap-6 lg:gap-10">
           <Avatar className="h-32 w-32 lg:h-40 lg:w-40">
-            <AvatarImage src={user?.profile_picture || undefined} />
+            <AvatarImage src={details?.profile_picture || undefined} />
             <AvatarFallback className="text-4xl">{fullName[0]?.toUpperCase() || "U"}</AvatarFallback>
           </Avatar>
           <div className="space-y-2">
             <h1 className="text-2xl lg:text-3xl font-bold">{fullName}</h1>
-            <p className="text-md text-muted-foreground">{user?.email}</p>
+            <p className="text-md text-muted-foreground">{details?.email}</p>
           </div>
         </div>
 
@@ -119,15 +118,15 @@ export default function UserProfile() {
             <div className="space-y-4">
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Role</span>
-                <span className="text-sm md:text-md font-medium">{user?.role || "Unknown"}</span>
+                <span className="text-sm md:text-md font-medium">{details?.role || "Unknown"}</span>
               </div>
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Status</span>
-                {statusBadge(user?.is_active!, "Active")}
+                {statusBadge(details?.is_active!, "Active")}
               </div>
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Approval Status</span>
-                {statusBadge(user?.is_approved!, "Approved")}
+                {statusBadge(details?.is_approved!, "Approved")}
               </div>
             </div>
           </section>
@@ -140,7 +139,7 @@ export default function UserProfile() {
                 <span className="text-sm text-muted-foreground">User ID</span>
                 <div className="flex items-center gap-2">
                   <code className="text-md font-mono bg-muted px-2 py-1 rounded">
-                    {showId ? user?.id : '••••••••'}
+                    {showId ? details?.id : '••••••••'}
                   </code>
                   <Button
                     variant="ghost"

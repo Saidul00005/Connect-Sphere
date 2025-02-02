@@ -101,11 +101,47 @@ class EmployeeViewSet(viewsets.ModelViewSet):
 
         return Response({"error": "Unable to paginate employees."}, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=False, methods=['get'])
+    def list_employee(self, request):
+        if not hasattr(request.user, 'role') or request.user.role is None:
+            raise PermissionDenied("You do not have permission to view this employee's details.")
+
+        employeesList = Employee.objects.select_related('user', 'department').values(
+            'id', 
+            'user_id', 
+            'user__first_name', 
+            'user__last_name', 
+            'user__role__name', 
+            'department__name'
+        ).order_by('id')
+
+        paginator = CustomPagination()
+        paginated_employees = paginator.paginate_queryset(employeesList, request)
+
+        if paginated_employees is not None:
+            return paginator.get_paginated_response(paginated_employees)
+
+        return Response({"error": "Unable to paginate employees."}, status=status.HTTP_400_BAD_REQUEST)
+
+
     def retrieve(self, request, *args, **kwargs):
         employee = self.get_object()
 
-        if not (request.user.role.name == 'CEO' or employee.user == request.user):
+        if not (request.user.role.name == 'CEO'):
             raise PermissionDenied("You do not have permission to view this employee's details.")
+
+        serializer = self.get_serializer(employee)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def retrieve_by_user_id(self, request, user_id=None):
+        try:
+            employee = Employee.objects.get(user__id=user_id)
+        except Employee.DoesNotExist:
+            raise NotFound("Employee not found for this user.")
+
+        if not (request.user.id == int(user_id)):
+            raise PermissionDenied("You do not have permission to view this employee.")
 
         serializer = self.get_serializer(employee)
         return Response(serializer.data)

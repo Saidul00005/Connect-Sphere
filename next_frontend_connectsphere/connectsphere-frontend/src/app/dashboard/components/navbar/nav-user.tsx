@@ -22,6 +22,7 @@ export function NavUser() {
 
   const userName = session ? session.user?.name : "Guest"
   const userEmail = session ? session.user?.email : ""
+  const profilePicture = session?.user?.profile_picture;
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: "/" });
@@ -37,7 +38,7 @@ export function NavUser() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarImage src='' alt={userName} />
+                <AvatarImage src={profilePicture} alt={userName} />
                 <AvatarFallback className="text-xl">{userName[0]?.toUpperCase() || "U"}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">

@@ -18,7 +18,7 @@ class Role(models.Model):
 
 class User(AbstractUser):
     email = models.EmailField(unique=True)
-    role = models.ForeignKey(Role, on_delete=models.PROTECT, null=True, blank=True)
+    role = models.ForeignKey(Role, on_delete=models.PROTECT)
     is_approved = models.BooleanField(default=False)
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
@@ -28,7 +28,7 @@ class User(AbstractUser):
     is_deleted = models.BooleanField(default=False)
     
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
+    REQUIRED_FIELDS = ['username', 'first_name', 'last_name','role']
 
     def soft_delete(self):
         self.is_deleted = True

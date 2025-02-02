@@ -22,23 +22,22 @@ export default function EmployeeProfile() {
   })
 
   const dispatch = useAppDispatch()
-  const { details, loading: profileLoading, error } = useAppSelector(
+  const { details, loading: employeeProfileLoading, error } = useAppSelector(
     (state) => state.profile
   )
   const [showId, setShowId] = useState(false)
 
-  const employee = details?.employee_details
-  const fullName = employee?.user?.first_name || employee?.user?.last_name
-    ? `${employee.user.first_name} ${employee.user.last_name}`.trim()
+  const fullName = details?.user?.first_name || details?.user?.last_name
+    ? `${details.user.first_name} ${details.user.last_name}`.trim()
     : "N/A"
 
   useEffect(() => {
-    if (status === "authenticated" && !employee && !profileLoading) {
+    if (status === "authenticated" && details === null && !employeeProfileLoading && !error) {
       dispatch(fetchProfile())
     }
-  }, [status, employee, profileLoading, dispatch])
+  }, [status, details, employeeProfileLoading, error, dispatch])
 
-  const isLoading = status === "loading" || profileLoading
+  const isLoading = status === "loading" || employeeProfileLoading
 
   if (isLoading) {
     return (
@@ -76,7 +75,7 @@ export default function EmployeeProfile() {
     )
   }
 
-  if (!employee) {
+  if (!details) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="bg-destructive/10 text-destructive px-4 py-2 rounded-lg">
@@ -92,12 +91,12 @@ export default function EmployeeProfile() {
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center gap-6 lg:gap-10">
           <Avatar className="h-32 w-32 lg:h-40 lg:w-40">
-            <AvatarImage src={employee.profile_picture || undefined} alt={employee.employee_id} />
+            <AvatarImage src={details.user?.profile_picture || undefined} alt="Profile" />
             <AvatarFallback className="text-4xl">{fullName[0].toUpperCase() || "E"}</AvatarFallback>
           </Avatar>
           <div className="space-y-2">
             <h1 className="text-2xl lg:text-3xl font-bold">{fullName}</h1>
-            <p className="text-md text-muted-foreground">{employee.designation}</p>
+            <p className="text-md text-muted-foreground">{details.designation}</p>
           </div>
         </div>
 
@@ -113,7 +112,7 @@ export default function EmployeeProfile() {
                 <span className="text-sm text-muted-foreground">Employee ID</span>
                 <div className="flex items-center gap-2">
                   <code className="text-md font-mono bg-muted px-2 py-1 rounded">
-                    {showId ? employee.employee_id : '••••••••'}
+                    {showId ? details.employee_id : '••••••••'}
                   </code>
                   <Button
                     variant="ghost"
@@ -127,11 +126,11 @@ export default function EmployeeProfile() {
               </div>
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Department</span>
-                <span className="text-sm md:text-md font-medium">{employee.department?.name}</span>
+                <span className="text-sm md:text-md font-medium">{details.department?.name}</span>
               </div>
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Role</span>
-                <span className="text-sm md:text-md font-medium">{employee.role_name}</span>
+                <span className="text-sm md:text-md font-medium">{details.user?.role}</span>
               </div>
             </div>
           </section>
@@ -142,15 +141,15 @@ export default function EmployeeProfile() {
             <div className="space-y-4">
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Contact Number</span>
-                <span className="text-sm md:text-md font-medium">{employee.contact_number}</span>
+                <span className="text-sm md:text-md font-medium">{details.contact_number}</span>
               </div>
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Emergency Contact</span>
-                <span className="text-sm md:text-md font-medium">{employee.emergency_contact}</span>
+                <span className="text-sm md:text-md font-medium">{details.emergency_contact}</span>
               </div>
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Address</span>
-                <span className="text-sm md:text-md font-medium">{employee.address}</span>
+                <span className="text-sm md:text-md font-medium">{details.address}</span>
               </div>
             </div>
           </section>
@@ -161,11 +160,11 @@ export default function EmployeeProfile() {
             <div className="space-y-4">
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Joining Date</span>
-                <span className="text-sm md:text-md font-medium">{new Date(employee.joining_date).toLocaleDateString()}</span>
+                <span className="text-sm md:text-md font-medium">{new Date(details?.joining_date).toLocaleDateString()}</span>
               </div>
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Reporting Manager</span>
-                <span className="text-sm md:text-md font-medium">{employee.reporting_manager_name}</span>
+                <span className="text-sm md:text-md font-medium">{details.reporting_manager_name}</span>
               </div>
             </div>
           </section>
@@ -177,7 +176,7 @@ export default function EmployeeProfile() {
         <section className="space-y-6">
           <h2 className="text-xl font-semibold">Skills</h2>
           <div className="flex flex-wrap gap-2">
-            {employee.skills?.map((skill: string, index: number) => (
+            {details.skills?.map((skill: string, index: number) => (
               <Badge key={index} variant="secondary">
                 {skill}
               </Badge>
@@ -193,11 +192,11 @@ export default function EmployeeProfile() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="flex flex-col gap-2">
               <span className="text-sm text-muted-foreground">Rating</span>
-              <span className="text-sm md:text-md font-medium">{employee.performance_rating} / 5</span>
+              <span className="text-sm md:text-md font-medium">{details.performance_rating} / 5</span>
             </div>
             <div className="flex flex-col gap-2">
               <span className="text-sm text-muted-foreground">Last Review Date</span>
-              <span className="text-sm md:text-md font-medium">{new Date(employee.last_review_date).toLocaleDateString()}</span>
+              <span className="text-sm md:text-md font-medium">{new Date(details?.last_review_date).toLocaleDateString()}</span>
             </div>
           </div>
         </section>

@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView,TokenRefreshView
 from .models import User, Role
 from .serializers import UserSerializer,CustomTokenObtainPairSerializer
 from .pagination import CustomPagination
@@ -208,6 +208,10 @@ class UserViewSet(viewsets.ModelViewSet):
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+    permission_classes = [HasAPIKey]
+    throttle_classes = [UserRateThrottle]
+
+class CustomTokenRefreshView(TokenRefreshView):
     permission_classes = [HasAPIKey]
     throttle_classes = [UserRateThrottle]
 
