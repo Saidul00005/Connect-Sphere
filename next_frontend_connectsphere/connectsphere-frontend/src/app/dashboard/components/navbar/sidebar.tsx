@@ -16,7 +16,6 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
 } from "@/components/ui/sidebar"
-import Image from "next/image"
 import Link from "next/link"
 import { ThemeModeToggleDashboard } from "@/components/custom/ThemeSwitcherDashboard"
 import { useSidebar } from "@/components/ui/sidebar"

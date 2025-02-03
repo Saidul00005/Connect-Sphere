@@ -7,11 +7,8 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session?.user?.token) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+    if (!session?.user || !session.user.token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const response = await axios.get(

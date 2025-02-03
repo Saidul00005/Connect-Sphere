@@ -4,10 +4,10 @@ import axios from 'axios'
 interface Employee {
   id: number
   user_id: number
-  first_name: string
-  last_name: string
-  role_name: string
-  department_name: string
+  user__first_name: string | null
+  user__last_name: string | null
+  user__role__name: string
+  department__name: string | null
 }
 
 interface EmployeeListState {
@@ -32,16 +32,15 @@ export const fetchEmployees = createAsyncThunk(
   'employees/fetch',
   async (pageUrl: string | null, { rejectWithValue }) => {
     try {
-      const response = await axios.get(pageUrl || '/api/employees/list_employee/?page=1')
-      return response.data
+      const url = '/api/employees/list_employee_for_request_user/';
+      const response = await axios.get(url, { params: { pageUrl } });
+      return response.data;
     } catch (error: any) {
-      if (error.response) {
-        return rejectWithValue(error.response.data)
-      }
-      return rejectWithValue({ message: 'An unknown error occurred' })
+      console.error('Fetch employees error:', error);
+      return rejectWithValue(error.response?.data || { message: error.message || 'Unknown error' });
     }
   }
-)
+);
 
 const employeeListForUserSlice = createSlice({
   name: 'employees',
@@ -65,15 +64,14 @@ const employeeListForUserSlice = createSlice({
 
         state.employees = [...state.employees, ...results]
 
-        if (state.employees.length > 30) {
-          state.employees = state.employees.slice(10)
-        }
+        // if (state.employees.length > 30) {
+        //   state.employees = state.employees.slice(10)
+        // }
 
         state.nextPage = next
         state.previousPage = previous
 
         state.hasMore = !!next
-
         state.loading = false
       })
       .addCase(fetchEmployees.rejected, (state, action) => {

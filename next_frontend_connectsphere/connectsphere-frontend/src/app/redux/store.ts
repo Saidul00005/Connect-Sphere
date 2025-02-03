@@ -4,13 +4,15 @@ import profileReducer from '@/app/redux/slices/profileSlice';
 import chatReducer from '@/app/redux/slices/chatSlice';
 import userProfileReducer from '@/app/redux/slices/userProfileSlice';
 import employeeListForUserReducer from '@/app/redux/slices/employeeListForUserSlice';
+import employeeProfileSliceForUser from '@/app/redux/slices/employeeProfileSliceForUser';
 
 export const store = configureStore({
   reducer: {
     profile: profileReducer,
     chat: chatReducer,
     userProfile: userProfileReducer,
-    employees: employeeListForUserReducer
+    employees: employeeListForUserReducer,
+    employee: employeeProfileSliceForUser
   },
 });
 
