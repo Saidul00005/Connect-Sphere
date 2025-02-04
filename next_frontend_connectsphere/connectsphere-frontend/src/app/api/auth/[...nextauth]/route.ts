@@ -50,7 +50,6 @@ export const authOptions: NextAuthOptions = {
             name: user.first_name + " " + user.last_name,
             role: user.role,
             is_active: user.is_active,
-            profile_picture: user.profile_picture,
             token: userResponse.access,
             refreshToken: userResponse.refresh,
           };
@@ -86,7 +85,6 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email;
         token.name = user.name;
         token.role = user.role;
-        token.profile_picture = user.profile_picture;
         token.token = user.token;
         token.refreshToken = user.refreshToken;
         token.accessTokenExpiry = Date.now() + 50 * 60 * 1000; // Set expiry (50 minutes)
@@ -138,7 +136,6 @@ export const authOptions: NextAuthOptions = {
         id: token.id as string,
         email: token.email as string,
         name: token.name as string,
-        profile_picture: token.profile_picture as string,
         role: token.role as string,
         token: token.token as string,
       };

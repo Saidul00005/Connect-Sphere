@@ -9,7 +9,6 @@ export interface User {
   last_name: string;
   role: string;
   is_active: boolean;
-  profile_picture: string;
   token: string;
   refreshToken: string;
 }
@@ -20,7 +19,6 @@ export interface JWT {
   email?: string;
   name?: string;
   role?: string;
-  profile_picture?: string,
   token?: string;
   refreshToken?: string;
   accessTokenExpiry?: number;
@@ -32,7 +30,6 @@ export interface SessionExtended extends DefaultSession {
     email: string;
     name: string;
     role: string;
-    profile_picture: string;
     token: string;
   };
 }

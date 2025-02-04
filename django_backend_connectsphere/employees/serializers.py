@@ -83,3 +83,15 @@ class EmployeeSerializer(serializers.ModelSerializer):
             validated_data['employee_id'] = f"{dept_code}{department.last_employee_id:04d}"
         
             return super().create(validated_data)
+
+
+class CustomEmployeeSerializerFor_list_employee_action(serializers.ModelSerializer):
+    user__id = serializers.IntegerField(source='user.id', read_only=True)
+    user__first_name = serializers.CharField(source='user.first_name', read_only=True)
+    user__last_name = serializers.CharField(source='user.last_name', read_only=True)
+    user__role_name = serializers.CharField(source='user.role.name', read_only=True)
+    department__name = serializers.CharField(source='department.name', read_only=True)
+
+    class Meta:
+        model = Employee
+        fields = ['id', 'user__id', 'user__first_name','user__last_name', 'user__role_name', 'designation', 'department__name']

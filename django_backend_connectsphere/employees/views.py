@@ -6,7 +6,8 @@ from .models import Department, Employee, EmployeeDocument
 from .serializers import (
     DepartmentSerializer,
     EmployeeSerializer,
-    EmployeeDocumentSerializer
+    EmployeeDocumentSerializer,
+    CustomEmployeeSerializerFor_list_employee_action
 )
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import NotFound
@@ -14,7 +15,7 @@ from rest_framework.throttling import UserRateThrottle
 from rest_framework_api_key.permissions import HasAPIKey
 from .pagination import CustomPagination
 from rest_framework.exceptions import PermissionDenied
-from django.db.models import Count,F,Value
+from django.db.models import Count,F,Value,Q
 from django.db.models.functions import Concat
 from django.utils import timezone
 from django.contrib.postgres.aggregates import ArrayAgg
@@ -106,17 +107,25 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         if not hasattr(request.user, 'role') or request.user.role is None:
             raise PermissionDenied("You do not have permission to view this employee's details.")
 
-        employeesList = Employee.objects.select_related('user', 'department').values(
-            'id', 
-            'user_id', 
-            'user__first_name', 
-            'user__last_name', 
-            'user__role__name', 
-            'department__name'
-        ).order_by('id')
+        department_name = request.GET.get('department', None)
+        search_query = request.GET.get('search', None)
+
+        employeesList = Employee.objects.select_related('user', 'department').only(
+           'id', 'user__id', 'user__first_name','user__last_name', 'user__role__name', 'designation', 'department__name'
+        )
+
+        filters = Q()
+        if department_name:
+            filters &= Q(department__name__iexact=department_name) 
+        if search_query:
+            filters &= Q(user__first_name__icontains=search_query) | Q(user__last_name__icontains=search_query)
+
+        employeesList = employeesList.filter(filters).order_by('id') 
+
+        serializer = CustomEmployeeSerializerFor_list_employee_action(employeesList, many=True)
 
         paginator = CustomPagination()
-        paginated_employees = paginator.paginate_queryset(employeesList, request)
+        paginated_employees = paginator.paginate_queryset(serializer.data, request)
 
         if paginated_employees is not None:
             return paginator.get_paginated_response(paginated_employees)

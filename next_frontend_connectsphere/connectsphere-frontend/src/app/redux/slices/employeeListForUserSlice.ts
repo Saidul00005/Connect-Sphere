@@ -1,43 +1,86 @@
-import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-import axios from 'axios'
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import axios from 'axios';
+import {
+  EmployeeState,
+  FetchEmployeeParams,
+  EmployeeResponse,
+  getFilterKey
+} from '@/app/dashboard/collegues/types/employeeListTypes';
+import { RootState } from "@/app/redux/store";
 
-interface Employee {
-  id: number
-  user_id: number
-  user__first_name: string | null
-  user__last_name: string | null
-  user__role__name: string
-  department__name: string | null
-}
-
-interface EmployeeListState {
-  employees: Employee[]
-  loading: boolean
-  error: string | null
-  nextPage: string | null
-  previousPage: string | null
-  hasMore: boolean
-}
-
-const initialState: EmployeeListState = {
-  employees: [],
+const initialState: EmployeeState = {
+  pages: {},
+  currentPage: {},
+  nextPage: {},
+  previousPage: {},
+  totalCount: {},
+  totalPages: {},
   loading: false,
   error: null,
-  nextPage: null,
-  previousPage: null,
-  hasMore: true,
-}
+};
 
-export const fetchEmployees = createAsyncThunk(
-  'employees/fetch',
-  async (pageUrl: string | null, { rejectWithValue }) => {
+export const fetchEmployees = createAsyncThunk<
+  { filterKey: string; page: string; data: EmployeeResponse },
+  FetchEmployeeParams,
+  { rejectValue: string, state: RootState }
+>(
+  "employees/fetch",
+  async ({ pageUrl, department, search }, { getState, rejectWithValue }) => {
     try {
-      const url = '/api/employees/list_employee_for_request_user/';
-      const response = await axios.get(url, { params: { pageUrl } });
-      return response.data;
-    } catch (error: any) {
-      console.error('Fetch employees error:', error);
-      return rejectWithValue(error.response?.data || { message: error.message || 'Unknown error' });
+      const state = getState().employees;
+
+      const filterKey = getFilterKey(department, search);
+      const page = pageUrl
+        ? new URL(pageUrl, window.location.origin).searchParams.get("page") || "1"
+        : "1";
+
+      if (state.pages[filterKey]?.[page]) {
+        return {
+          filterKey,
+          page,
+          data: {
+            results: state.pages[filterKey][page],
+            count: state.totalCount[filterKey],
+            next: state.nextPage[filterKey],
+            previous: state.previousPage[filterKey]
+          }
+        };
+      }
+
+      const params = new URLSearchParams();
+
+      // if (pageUrl) {
+      //   const urlObj = new URL(pageUrl, window.location.origin);
+      //   params.set('page', urlObj.searchParams.get('page') || '1');
+      // } else {
+      //   params.set('page', '1');
+      // }
+
+      // if (department) params.set('department', department);
+      // if (search) params.set('search', search);
+
+      params.set("page", page);
+      if (department) params.set("department", department);
+      if (search) params.set("search", search);
+
+      const response = await axios.get<EmployeeResponse>(
+        `/api/employees/list_employee_for_request_user?${params.toString()}`
+      );
+
+      return {
+        filterKey: getFilterKey(department, search),
+        page: params.get('page') || '1',
+        data: response.data
+      };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        return rejectWithValue(
+          error.response?.data?.error ||
+          error.message ||
+          "Failed to fetch employees"
+        );
+      }
+      return rejectWithValue("Failed to fetch employees");
     }
   }
 );
@@ -46,40 +89,50 @@ const employeeListForUserSlice = createSlice({
   name: 'employees',
   initialState,
   reducers: {
-    resetEmployees(state) {
-      state.employees = []
-      state.nextPage = null
-      state.previousPage = null
-      state.hasMore = true
-    }
+    resetEmployees: (state) => {
+      state.pages = {};
+      state.currentPage = {};
+      state.nextPage = {};
+      state.previousPage = {};
+      state.totalCount = {};
+      state.totalPages = {};
+    },
+    setCurrentPage: (state, action: PayloadAction<Record<string, string>>) => {
+      state.currentPage = { ...state.currentPage, ...action.payload };
+    },
   },
   extraReducers: (builder) => {
     builder
       .addCase(fetchEmployees.pending, (state) => {
-        state.loading = true
-        state.error = null
+        state.loading = true;
+        state.error = null;
       })
       .addCase(fetchEmployees.fulfilled, (state, action) => {
-        const { results, next, previous } = action.payload
+        state.loading = false;
 
-        state.employees = [...state.employees, ...results]
+        const { filterKey, page, data } = action.payload;
+        const pageSize = 1;
 
-        // if (state.employees.length > 30) {
-        //   state.employees = state.employees.slice(10)
-        // }
+        if (!state.pages[filterKey]) {
+          state.pages[filterKey] = {};
+          state.currentPage[filterKey] = "1";
+          state.totalCount[filterKey] = 0;
+          state.totalPages[filterKey] = 0;
+        }
 
-        state.nextPage = next
-        state.previousPage = previous
-
-        state.hasMore = !!next
-        state.loading = false
+        state.pages[filterKey][page] = data.results;
+        state.currentPage[filterKey] = page;
+        state.totalCount[filterKey] = data.count;
+        state.totalPages[filterKey] = Math.ceil(data.count / pageSize);
+        state.nextPage[filterKey] = data.next;
+        state.previousPage[filterKey] = data.previous;
       })
       .addCase(fetchEmployees.rejected, (state, action) => {
-        state.loading = false
-        state.error = (action.payload as { message: string })?.message || 'Failed to fetch employees'
-      })
+        state.loading = false;
+        state.error = action.payload || "An error occurred";
+      });
   }
-})
+});
 
-export const { resetEmployees } = employeeListForUserSlice.actions
-export default employeeListForUserSlice.reducer
+export const { resetEmployees, setCurrentPage } = employeeListForUserSlice.actions;
+export default employeeListForUserSlice.reducer;

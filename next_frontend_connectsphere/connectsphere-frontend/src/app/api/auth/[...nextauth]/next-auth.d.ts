@@ -8,7 +8,6 @@ declare module "next-auth" {
     name: string;
     role: string;
     is_active: boolean;
-    profile_picture: string;
     token: string;
     refreshToken: string;
   }
@@ -18,7 +17,6 @@ declare module "next-auth" {
       id: string;
       email: string;
       name: string;
-      profile_picture: string;
       role: string;
       token: string;
     };

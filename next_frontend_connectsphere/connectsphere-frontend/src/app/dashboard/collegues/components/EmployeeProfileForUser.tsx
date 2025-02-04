@@ -25,13 +25,15 @@ export default function ProfilePage({ userId }: ProfilePageProps) {
   })
 
   const dispatch = useAppDispatch()
-  const { details, loading: employeeProfileLoading, error } = useAppSelector((state) => state.employee)
+  const { profiles, loading: employeeProfileLoading, error } = useAppSelector((state) => state.employee)
+
+  const details = profiles[userId] || null;
 
   useEffect(() => {
-    if (status === "authenticated" && !employeeProfileLoading && !error && userId) {
+    if (status === "authenticated" && userId) {
       dispatch(fetchEmployeeDetails(userId))
     }
-  }, [dispatch])
+  }, [dispatch, status, userId])
 
   const isLoading = status === "loading" || employeeProfileLoading
 
