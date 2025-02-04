@@ -37,9 +37,6 @@ export default function EmployeeList() {
   const {
     pages,
     currentPage,
-    nextPage,
-    previousPage,
-    totalPages,
     loading: employeeListLoading,
     error,
   } = useAppSelector((state) => state.employees);
@@ -50,8 +47,13 @@ export default function EmployeeList() {
   const [selectedEmployeeUserId, setSelectedEmployeeUserId] = useState<number | null>(null);
 
   const filterKey = getFilterKey(department, searchTerm);
-  const employees: Employee[] = pages[filterKey]?.[currentPage[filterKey] || "1"] || [];
   const currentPageNumber = parseInt(currentPage[filterKey] || "1");
+  const pageData = pages[filterKey]?.[currentPage[filterKey] || "1"];
+  const employees: Employee[] = pageData ? pageData.results : [];
+  const nextPageUrl = pageData?.next;
+  const previousPageUrl = pageData?.previous;
+  const pageSize = 10;
+  const totalPages = pageData ? Math.ceil(pageData.count / pageSize) : 1;
 
   useEffect(() => {
     if (status === "authenticated" && employees.length === 0) {
@@ -61,24 +63,62 @@ export default function EmployeeList() {
   }, [status, department, searchTerm, dispatch]);
 
   const handlePreviousPage = useCallback(() => {
-    if (previousPage[filterKey] && !employeeListLoading) {
-      if (!pages[filterKey]?.[previousPage[filterKey] || ""]) {
-        dispatch(fetchEmployees({ pageUrl: previousPage[filterKey], department, search: searchTerm }));
+    if (previousPageUrl && !employeeListLoading) {
+      const prevPageNumber =
+        new URL(previousPageUrl, window.location.origin).searchParams.get(
+          "page"
+        ) || "1";
+
+      if (!pages[filterKey]?.[prevPageNumber]) {
+        dispatch(
+          fetchEmployees({
+            pageUrl: previousPageUrl,
+            department,
+            search: searchTerm,
+          })
+        );
       } else {
-        dispatch(setCurrentPage({ [filterKey]: previousPage[filterKey] || "1" }));
+        // Otherwise, just update the current page pointer.
+        dispatch(setCurrentPage({ [filterKey]: prevPageNumber }));
       }
     }
-  }, [previousPage, employeeListLoading, dispatch, pages, department, searchTerm, filterKey]);
+  }, [
+    previousPageUrl,
+    employeeListLoading,
+    dispatch,
+    pages,
+    department,
+    searchTerm,
+    filterKey,
+  ]);
+
 
   const handleNextPage = useCallback(() => {
-    if (nextPage[filterKey] && !employeeListLoading) {
-      if (!pages[filterKey]?.[nextPage[filterKey] || ""]) {
-        dispatch(fetchEmployees({ pageUrl: nextPage[filterKey], department, search: searchTerm }));
+    if (nextPageUrl && !employeeListLoading) {
+      const nextPageNumber =
+        new URL(nextPageUrl, window.location.origin).searchParams.get("page") ||
+        "1";
+      if (!pages[filterKey]?.[nextPageNumber]) {
+        dispatch(
+          fetchEmployees({
+            pageUrl: nextPageUrl,
+            department,
+            search: searchTerm,
+          })
+        );
       } else {
-        dispatch(setCurrentPage({ [filterKey]: nextPage[filterKey] || "1" }));
+        dispatch(setCurrentPage({ [filterKey]: nextPageNumber }));
       }
     }
-  }, [nextPage, employeeListLoading, dispatch, pages, department, searchTerm, filterKey]);
+  }, [
+    nextPageUrl,
+    employeeListLoading,
+    dispatch,
+    pages,
+    department,
+    searchTerm,
+    filterKey,
+  ]);
 
   const handleSearch = () => {
     if (searchInputRef.current) {
@@ -90,6 +130,16 @@ export default function EmployeeList() {
     setDepartment(value);
     dispatch(resetEmployees());
     dispatch(fetchEmployees({ pageUrl: null, department: value, search: searchTerm }));
+  };
+
+  const handleClearFilters = () => {
+    setDepartment("");
+    setSearchTerm("");
+    if (searchInputRef.current) {
+      searchInputRef.current.value = "";
+    }
+    dispatch(resetEmployees());
+    dispatch(fetchEmployees({ pageUrl: null, department: "", search: "" }));
   };
 
   const isLoading = (status === "loading" || employeeListLoading) && !error;
@@ -147,6 +197,10 @@ export default function EmployeeList() {
             <SelectItem value="Finance">Finance</SelectItem>
           </SelectContent>
         </Select>
+
+        <Button variant="outline" onClick={handleClearFilters}>
+          Clear Filters
+        </Button>
       </div>
 
       <div className="space-y-2">
@@ -210,13 +264,13 @@ export default function EmployeeList() {
       </div>
 
       <div className="flex items-center justify-center gap-4">
-        <Button onClick={handlePreviousPage} disabled={!previousPage[filterKey]}>
+        <Button onClick={handlePreviousPage} disabled={!previousPageUrl}>
           Previous
         </Button>
         <span>
-          Page {currentPageNumber} of {totalPages[filterKey] || 1}
+          Page {currentPageNumber} of {totalPages}
         </span>
-        <Button onClick={handleNextPage} disabled={!nextPage[filterKey]}>
+        <Button onClick={handleNextPage} disabled={!nextPageUrl}>
           Next
         </Button>
       </div>

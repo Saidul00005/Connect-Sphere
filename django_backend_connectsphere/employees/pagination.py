@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from urllib.parse import urlparse
 
 class CustomPagination(PageNumberPagination):
-    page_size = 1
+    page_size = 10
     page_query_param = 'page'
     page_size_query_param = 'size'
     max_page_size = 30

@@ -1,34 +1,32 @@
-import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
+import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import axios from "axios";
 import {
   EmployeeState,
   FetchEmployeeParams,
   EmployeeResponse,
-  getFilterKey
-} from '@/app/dashboard/collegues/types/employeeListTypes';
+  PageData,
+  getFilterKey,
+} from "@/app/dashboard/collegues/types/employeeListTypes";
 import { RootState } from "@/app/redux/store";
+
+const MAX_PAGES = 10;
 
 const initialState: EmployeeState = {
   pages: {},
   currentPage: {},
-  nextPage: {},
-  previousPage: {},
-  totalCount: {},
-  totalPages: {},
   loading: false,
   error: null,
 };
 
 export const fetchEmployees = createAsyncThunk<
-  { filterKey: string; page: string; data: EmployeeResponse },
+  { filterKey: string; page: string; data: PageData },
   FetchEmployeeParams,
-  { rejectValue: string, state: RootState }
+  { rejectValue: string; state: RootState }
 >(
   "employees/fetch",
   async ({ pageUrl, department, search }, { getState, rejectWithValue }) => {
     try {
       const state = getState().employees;
-
       const filterKey = getFilterKey(department, search);
       const page = pageUrl
         ? new URL(pageUrl, window.location.origin).searchParams.get("page") || "1"
@@ -38,27 +36,11 @@ export const fetchEmployees = createAsyncThunk<
         return {
           filterKey,
           page,
-          data: {
-            results: state.pages[filterKey][page],
-            count: state.totalCount[filterKey],
-            next: state.nextPage[filterKey],
-            previous: state.previousPage[filterKey]
-          }
+          data: state.pages[filterKey][page],
         };
       }
 
       const params = new URLSearchParams();
-
-      // if (pageUrl) {
-      //   const urlObj = new URL(pageUrl, window.location.origin);
-      //   params.set('page', urlObj.searchParams.get('page') || '1');
-      // } else {
-      //   params.set('page', '1');
-      // }
-
-      // if (department) params.set('department', department);
-      // if (search) params.set('search', search);
-
       params.set("page", page);
       if (department) params.set("department", department);
       if (search) params.set("search", search);
@@ -67,18 +49,24 @@ export const fetchEmployees = createAsyncThunk<
         `/api/employees/list_employee_for_request_user?${params.toString()}`
       );
 
+      const data: PageData = {
+        results: response.data.results,
+        next: response.data.next,
+        previous: response.data.previous,
+        count: response.data.count,
+      };
       return {
-        filterKey: getFilterKey(department, search),
-        page: params.get('page') || '1',
-        data: response.data
+        filterKey,
+        page: params.get("page") || "1",
+        data,
       };
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        return rejectWithValue(
-          error.response?.data?.error ||
-          error.message ||
-          "Failed to fetch employees"
-        );
+        const message =
+          typeof error.response?.data?.error === "string"
+            ? error.response?.data?.error
+            : error.message || "Failed to fetch employees";
+        return rejectWithValue(message);
       }
       return rejectWithValue("Failed to fetch employees");
     }
@@ -86,16 +74,12 @@ export const fetchEmployees = createAsyncThunk<
 );
 
 const employeeListForUserSlice = createSlice({
-  name: 'employees',
+  name: "employees",
   initialState,
   reducers: {
     resetEmployees: (state) => {
       state.pages = {};
       state.currentPage = {};
-      state.nextPage = {};
-      state.previousPage = {};
-      state.totalCount = {};
-      state.totalPages = {};
     },
     setCurrentPage: (state, action: PayloadAction<Record<string, string>>) => {
       state.currentPage = { ...state.currentPage, ...action.payload };
@@ -109,29 +93,36 @@ const employeeListForUserSlice = createSlice({
       })
       .addCase(fetchEmployees.fulfilled, (state, action) => {
         state.loading = false;
-
         const { filterKey, page, data } = action.payload;
-        const pageSize = 1;
-
         if (!state.pages[filterKey]) {
           state.pages[filterKey] = {};
           state.currentPage[filterKey] = "1";
-          state.totalCount[filterKey] = 0;
-          state.totalPages[filterKey] = 0;
         }
 
-        state.pages[filterKey][page] = data.results;
+        state.pages[filterKey][page] = data;
         state.currentPage[filterKey] = page;
-        state.totalCount[filterKey] = data.count;
-        state.totalPages[filterKey] = Math.ceil(data.count / pageSize);
-        state.nextPage[filterKey] = data.next;
-        state.previousPage[filterKey] = data.previous;
+
+        const cachedPageKeys = Object.keys(state.pages[filterKey])
+          .map(Number)
+          .sort((a, b) => a - b);
+
+        // If there are too many pages, find candidates that are not the current page.
+        const currentPageNumber = Number(state.currentPage[filterKey]);
+        const pagesToEvict = cachedPageKeys.filter((pageNum) => pageNum !== currentPageNumber);
+
+        // Evict the oldest candidate until the number of cached pages is at most MAX_PAGES.
+        while (Object.keys(state.pages[filterKey]).length > MAX_PAGES && pagesToEvict.length > 0) {
+          const oldestPage = pagesToEvict.shift()?.toString();
+          if (oldestPage) {
+            delete state.pages[filterKey][oldestPage];
+          }
+        }
       })
       .addCase(fetchEmployees.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || "An error occurred";
+        state.error = (action.payload as string) || "An error occurred";
       });
-  }
+  },
 });
 
 export const { resetEmployees, setCurrentPage } = employeeListForUserSlice.actions;

@@ -15,13 +15,16 @@ export interface EmployeeResponse {
   count: number;
 }
 
+export interface PageData {
+  results: Employee[];
+  next: string | null;
+  previous: string | null;
+  count: number;
+}
+
 export interface EmployeeState {
-  pages: { [key: string]: { [page: string]: Employee[] } };
+  pages: { [key: string]: { [page: string]: PageData } };
   currentPage: { [key: string]: string };
-  nextPage: { [key: string]: string | null };
-  previousPage: { [key: string]: string | null };
-  totalCount: { [key: string]: number };
-  totalPages: { [key: string]: number };
   loading: boolean;
   error: string | null;
 }
@@ -33,5 +36,5 @@ export interface FetchEmployeeParams {
 }
 
 export const getFilterKey = (department: string, search: string): string => {
-  return `dept=${department || 'all'}&search=${search || 'all'}`;
+  return `dept=${department || ""}&search=${search || ""}`;
 };

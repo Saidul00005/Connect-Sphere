@@ -1,5 +1,3 @@
-// src/app/redux/slices/employeeProfileSliceForUser.ts
-
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axios from 'axios';
 
@@ -58,9 +56,11 @@ export const fetchEmployeeDetails = createAsyncThunk(
   }
 );
 
+const MAX_PROFILES = 100;
+
 const employeeProfileSliceForUser = createSlice({
   name: 'employee',
-  initialState,
+  initialState: { ...initialState, profileOrder: [] as number[] },
   reducers: {},
   extraReducers: (builder) => {
     builder
@@ -70,7 +70,16 @@ const employeeProfileSliceForUser = createSlice({
       })
       .addCase(fetchEmployeeDetails.fulfilled, (state, action) => {
         const { userId, details } = action.payload;
+
+        if (state.profileOrder.length >= MAX_PROFILES) {
+          const oldestUserId = state.profileOrder.shift(); // Remove the first added profile
+          if (oldestUserId !== undefined) {
+            delete state.profiles[oldestUserId];
+          }
+        }
+
         state.profiles[userId] = details;
+        state.profileOrder.push(userId);
         state.loading = false;
       })
       .addCase(fetchEmployeeDetails.rejected, (state, action) => {
