@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useAppDispatch } from "@/app/redux/store"
-import { createChatRoom } from "@/app/redux/slices/chatSlice"
+import { createChatRoom } from "@/app/redux/slices/chatRoomSlice"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"

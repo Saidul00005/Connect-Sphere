@@ -1,26 +1,40 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useAppDispatch, useAppSelector } from "@/app/redux/store"
 import {
   fetchChatRooms,
-  fetchMessages,
-  updateMessage,
-  deleteMessage,
-  createMessage,
-} from "@/app/redux/slices/chatSlice"
+  resetChatRooms,
+  setCurrentPage
+} from "@/app/redux/slices/chatRoomSlice"
+import { getFilterKey } from "@/app/dashboard/chat/chat-history/types/chatHistoryTypes"
 import { Search, MoreVertical, Edit2, Trash2, Info, Menu, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { format } from "date-fns"
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 export default function ChatHistory() {
+  const router = useRouter();
+  const { status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      router.push("/");
+    },
+  });
   const dispatch = useAppDispatch()
-  const { rooms, messages, loading } = useAppSelector((state) => state.chat)
+  const {
+    pages,
+    currentPage,
+    loading: ChatroomListLoading,
+    error
+  } = useAppSelector((state) => state.chatRooms)
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedRoom, setSelectedRoom] = useState<number | null>(null)
   const [selectedMessage, setSelectedMessage] = useState<number | null>(null)
@@ -30,31 +44,95 @@ export default function ChatHistory() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false)
 
-  useEffect(() => {
-    dispatch(fetchChatRooms())
-  }, [dispatch])
+  const filterKey = getFilterKey(searchQuery);
+  const currentPageNumber = parseInt(currentPage[filterKey] || "1");
+  const pageData = pages[filterKey]?.[currentPage[filterKey] || "1"];
+  const rooms = pageData ? pageData.results : [];
+  const nextPageUrl = pageData?.next;
+  const previousPageUrl = pageData?.previous;
+  const totalPages = pageData ? Math.ceil(pageData.count / 10) : 1;
 
   useEffect(() => {
-    if (selectedRoom) {
-      dispatch(fetchMessages(selectedRoom))
+    if (status === "authenticated" && rooms.length === 0) {
+      dispatch(resetChatRooms());
+      dispatch(fetchChatRooms({ pageUrl: null, search: searchQuery }));
     }
-  }, [dispatch, selectedRoom])
+  }, [status, searchQuery, dispatch]);
+
+  const handleSearchClick = () => {
+    if (searchInputRef.current) {
+      setSearchQuery(searchInputRef.current.value);
+    }
+  }
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    if (searchInputRef.current) {
+      searchInputRef.current.value = "";
+    }
+    dispatch(resetChatRooms());
+    dispatch(fetchChatRooms({ pageUrl: null, search: searchQuery }));
+  };
+
+  const handleNextPage = useCallback(() => {
+    if (nextPageUrl && !ChatroomListLoading) {
+      const nextPageNumber =
+        new URL(nextPageUrl, window.location.origin).searchParams.get("page") ||
+        "1";
+      if (!pages[filterKey]?.[nextPageNumber]) {
+        dispatch(
+          fetchChatRooms({
+            pageUrl: nextPageUrl,
+            search: searchQuery,
+          })
+        );
+      } else {
+        dispatch(setCurrentPage({ [filterKey]: nextPageNumber }));
+      }
+    }
+  }, [nextPageUrl, ChatroomListLoading, dispatch, pages, searchQuery, filterKey]);
+
+  const handlePreviousPage = useCallback(() => {
+    if (previousPageUrl && !ChatroomListLoading) {
+      const prevPageNumber =
+        new URL(previousPageUrl, window.location.origin).searchParams.get(
+          "page"
+        ) || "1";
+
+      if (!pages[filterKey]?.[prevPageNumber]) {
+        dispatch(
+          fetchChatRooms({
+            pageUrl: previousPageUrl,
+            search: searchQuery,
+          })
+        );
+      } else {
+        dispatch(setCurrentPage({ [filterKey]: prevPageNumber }));
+      }
+    }
+  }, [previousPageUrl, ChatroomListLoading, dispatch, pages, searchQuery, filterKey]);
+
+  // useEffect(() => {
+  //   if (selectedRoom) {
+  //     dispatch(fetchMessages(selectedRoom))
+  //   }
+  // }, [dispatch, selectedRoom])
 
   const currentRoom = rooms.find((r) => r.id === selectedRoom)
   const filteredRooms = rooms.filter((room) => room.name.toLowerCase().includes(searchQuery.toLowerCase()))
 
-  const handleMessageEdit = async (messageId: number, content: string) => {
-    if (selectedRoom) {
-      await dispatch(updateMessage({ messageId, roomId: selectedRoom, content }))
-      setEditingMessage(null)
-    }
-  }
+  // const handleMessageEdit = async (messageId: number, content: string) => {
+  //   if (selectedRoom) {
+  //     await dispatch(updateMessage({ messageId, roomId: selectedRoom, content }))
+  //     setEditingMessage(null)
+  //   }
+  // }
 
-  const handleMessageDelete = async (messageId: number) => {
-    if (selectedRoom) {
-      await dispatch(deleteMessage({ messageId, roomId: selectedRoom }))
-    }
-  }
+  // const handleMessageDelete = async (messageId: number) => {
+  //   if (selectedRoom) {
+  //     await dispatch(deleteMessage({ messageId, roomId: selectedRoom }))
+  //   }
+  // }
 
   const handleRoomSelect = (roomId: number) => {
     setSelectedRoom(roomId)
@@ -62,38 +140,60 @@ export default function ChatHistory() {
   }
 
   const Sidebar = () => (
-    <div className="h-full flex flex-col bg-black">
+    <div className="h-full flex flex-col">
       <div className="p-4">
         <div className="relative flex items-center">
-          <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <Input
-            placeholder="Search chat rooms..."
-            className="pl-8 pr-8 bg-transparent"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            ref={searchInputRef}
+            placeholder="Search chat room name"
+            className="pr-10 bg-transparent"
           />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
+          <div className="absolute right-2 top-1/2 flex -translate-y-1/2 gap-2">
+            <Button variant="ghost" size="icon" onClick={handleSearchClick}>
+              <Search className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleClearSearch}>
               <X className="h-4 w-4" />
-            </button>
-          )}
+            </Button>
+          </div>
         </div>
       </div>
       <ScrollArea className="flex-1">
-        {filteredRooms.map((room) => (
+        {rooms.map((room) => (
           <button
             key={room.id}
             onClick={() => handleRoomSelect(room.id)}
             className={`w-full p-4 text-left hover:bg-accent ${selectedRoom === room.id ? "bg-accent" : ""}`}
           >
-            <h3 className="font-medium">{room.name}</h3>
+            <div className="flex items-center">
+              <h3 className="font-medium">{room.name}</h3>
+              {room.unread_messages_count > 0 && (
+                <span className="ml-2 inline-flex items-center justify-center w-6 h-6 bg-primary text-primary-foreground rounded-full text-xs">
+                  {room.unread_messages_count}
+                </span>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground">{room.type === "GROUP" ? "Group Chat" : "Direct Message"}</p>
+            {room.last_message && (
+              <p className="text-sm text-muted-foreground truncate">
+                {`${room.last_message.sender.first_name}: ${room.last_message.content}`}
+              </p>
+            )}
           </button>
         ))}
       </ScrollArea>
+
+      <div className="flex items-center justify-center gap-4 mt-4 mb-4">
+        <Button size='sm' onClick={handlePreviousPage} disabled={!previousPageUrl || ChatroomListLoading}>
+          Previous
+        </Button>
+        <span>
+          Page {currentPageNumber} of {totalPages}
+        </span>
+        <Button size='sm' onClick={handleNextPage} disabled={!nextPageUrl || ChatroomListLoading}>
+          Next
+        </Button>
+      </div>
     </div>
   )
 
@@ -109,7 +209,7 @@ export default function ChatHistory() {
 
       {/* Mobile Sidebar */}
       <Sheet open={isMobileSidebarOpen} onOpenChange={setIsMobileSidebarOpen}>
-        <SheetContent side="left" className="p-0 w-80 bg-black">
+        <SheetContent side="left" className="p-0 w-80">
           <SheetHeader className="px-4 py-2">
             <SheetTitle>Chat Rooms</SheetTitle>
           </SheetHeader>
@@ -118,7 +218,7 @@ export default function ChatHistory() {
       </Sheet>
 
       {/* Chat Content */}
-      <div className="flex-1 flex flex-col bg-black">
+      <div className="flex-1 flex flex-col">
         <div className="p-4 border-b border-gray-800">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-2">
@@ -129,7 +229,7 @@ export default function ChatHistory() {
 
               {/* Desktop sidebar toggle */}
               <Button
-                variant="ghost"
+                variant="secondary"
                 size="icon"
                 className="hidden md:flex"
                 onClick={() => setIsDesktopSidebarCollapsed(!isDesktopSidebarCollapsed)}
@@ -137,7 +237,7 @@ export default function ChatHistory() {
                 {isDesktopSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
               </Button>
 
-              <h2 className="text-xl font-semibold">{selectedRoom ? currentRoom?.name : "Select a chat"}</h2>
+              <h2 className="text-xl font-semibold">{selectedRoom && currentRoom ? currentRoom?.name : "Select a chat"}</h2>
             </div>
 
             {selectedRoom && (
@@ -175,17 +275,30 @@ export default function ChatHistory() {
             )}
           </div>
 
-          {selectedRoom && (
+          {selectedRoom && currentRoom ? (
             <div className="space-y-1 text-sm text-gray-400">
-              <p>Chatroom ID: {currentRoom?.id}</p>
-              <p>Created by: User {currentRoom?.created_by}</p>
-              <p>Created at: {format(new Date(currentRoom?.created_at || ""), "MMM dd, yyyy, h:mm:ss a")}</p>
+              <p>
+                Created by:{" "}
+                {currentRoom?.created_by?.first_name +
+                  " " +
+                  currentRoom?.created_by?.last_name}
+              </p>
+              <p>
+                Created at:{" "}
+                {currentRoom?.created_at
+                  ? format(new Date(currentRoom.created_at), "MMM dd, yyyy, h:mm:ss a")
+                  : "Unknown"}
+              </p>
               <p>Status: {currentRoom?.is_active ? "Active" : "Inactive"}</p>
+            </div>
+          ) : (
+            <div className="space-y-1 text-sm text-gray-400">
+              <p>No chatroom selected.</p>
             </div>
           )}
         </div>
 
-        {selectedRoom ? (
+        {/* {selectedRoom ? (
           <>
             <ScrollArea className="flex-1 p-4">
               {messages.map((message) => (
@@ -257,12 +370,12 @@ export default function ChatHistory() {
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             Select a chat room to start messaging
           </div>
-        )}
+        )} */}
+
       </div>
 
       {selectedRoom && (
         <>
-          {/* Participants Dialog */}
           <Dialog
             open={isParticipantsOpen}
             onOpenChange={(open) => {
@@ -274,22 +387,21 @@ export default function ChatHistory() {
               <DialogHeader>
                 <DialogTitle>Chat Participants</DialogTitle>
               </DialogHeader>
-              <div className="space-y-2">
+              <div className="space-y-2 text-sm">
                 {currentRoom?.participants.map((participant) => (
                   <div
-                    key={participant}
-                    className={`p-2 rounded-lg ${participant === currentRoom.created_by ? "bg-primary text-primary-foreground" : "bg-accent"
+                    key={participant.id}
+                    className={`p-2 rounded-lg ${participant.id === currentRoom.created_by.id ? "bg-primary text-primary-foreground" : "bg-accent"
                       }`}
                   >
-                    User {participant} {participant === currentRoom.created_by && " (Admin)"}
+                    {participant.first_name + " " + participant.last_name} {participant.id === currentRoom.created_by.id && " (Admin)"}
                   </div>
                 ))}
               </div>
             </DialogContent>
           </Dialog>
 
-          {/* Message Details Dialog */}
-          <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
+          {/* <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Message Details</DialogTitle>
@@ -309,7 +421,7 @@ export default function ChatHistory() {
                 </div>
               )}
             </DialogContent>
-          </Dialog>
+          </Dialog> */}
         </>
       )}
     </div>

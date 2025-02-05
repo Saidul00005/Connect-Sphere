@@ -18,5 +18,6 @@ urlpatterns = [
     path('employees/<int:pk>/upload_document/', EmployeeViewSet.as_view({'post': 'upload_document'}), name='upload_document_of_employee_for_CEO_and_department_manager'),
 
     path('departments/', DepartmentViewSet.as_view({'get': 'list'}), name='department_list_for_CEO'), 
+    path('departments/departments_list_for_request_user/', DepartmentViewSet.as_view({'get': 'departments_list_for_request_user'}), name='departments_list_for_request_user'),
     path('departments/<int:pk>/', DepartmentViewSet.as_view({'get': 'retrieve'}), name='department_details_retrieve'),
 ]

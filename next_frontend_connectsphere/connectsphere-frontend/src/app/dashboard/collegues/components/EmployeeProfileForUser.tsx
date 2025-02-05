@@ -7,9 +7,11 @@ import { Badge } from "@/components/ui/badge"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useAppSelector, useAppDispatch } from "@/app/redux/store"
 import { fetchEmployeeDetails } from "@/app/redux/slices/employeeProfileSliceForUser"
+import { Eye, EyeOff } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 interface ProfilePageProps {
   userId: number
@@ -26,6 +28,7 @@ export default function ProfilePage({ userId }: ProfilePageProps) {
 
   const dispatch = useAppDispatch()
   const { profiles, loading: employeeProfileLoading, error } = useAppSelector((state) => state.employee)
+  const [showId, setShowId] = useState(false)
 
   const details = profiles[userId] || null;
 
@@ -101,7 +104,20 @@ export default function ProfilePage({ userId }: ProfilePageProps) {
                   </Badge>
                 )}
                 <Badge variant="outline" className="text-sm">
-                  Employee ID: {details.employee_id || "N/A"}
+                  Employee ID:
+                  <div className="flex items-center gap-2">
+                    <code className="text-md font-mono bg-muted px-2 py-1 rounded">
+                      {showId ? details.employee_id || "N/A" : '••••••••'}
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowId(!showId)}
+                      aria-label={showId ? "Hide Employee ID" : "Show Employee ID"}
+                    >
+                      {showId ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
                 </Badge>
               </div>
             </div>

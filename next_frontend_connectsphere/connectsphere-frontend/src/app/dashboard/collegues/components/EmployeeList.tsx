@@ -23,6 +23,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
 import type { Employee } from "@/app/dashboard/collegues/types/employeeListTypes";
 import EmployeeProfileForUser from "./EmployeeProfileForUser"
+import { fetchDepartments } from "@/app/redux/slices/DepartmentListSliceForUser";
+
 
 export default function EmployeeList() {
   const router = useRouter();
@@ -38,8 +40,14 @@ export default function EmployeeList() {
     pages,
     currentPage,
     loading: employeeListLoading,
-    error,
+    error: employeeListError,
   } = useAppSelector((state) => state.employees);
+
+  const {
+    list,
+    loading: departmentListLoading,
+    error: departmentListError,
+  } = useAppSelector((state) => state.departments);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -62,8 +70,14 @@ export default function EmployeeList() {
     }
   }, [status, department, searchTerm, dispatch]);
 
+  useEffect(() => {
+    if (status === "authenticated" && list.length === 0 && !departmentListLoading && !departmentListError) {
+      dispatch(fetchDepartments());
+    }
+  }, [dispatch, status, departmentListLoading, departmentListLoading]);
+
   const handlePreviousPage = useCallback(() => {
-    if (previousPageUrl && !employeeListLoading) {
+    if (previousPageUrl && !employeeListLoading && !departmentListLoading) {
       const prevPageNumber =
         new URL(previousPageUrl, window.location.origin).searchParams.get(
           "page"
@@ -94,7 +108,7 @@ export default function EmployeeList() {
 
 
   const handleNextPage = useCallback(() => {
-    if (nextPageUrl && !employeeListLoading) {
+    if (nextPageUrl && !employeeListLoading && !departmentListLoading) {
       const nextPageNumber =
         new URL(nextPageUrl, window.location.origin).searchParams.get("page") ||
         "1";
@@ -142,9 +156,9 @@ export default function EmployeeList() {
     dispatch(fetchEmployees({ pageUrl: null, department: "", search: "" }));
   };
 
-  const isLoading = (status === "loading" || employeeListLoading) && !error;
+  const isLoading = (status === "loading" || employeeListLoading) && !employeeListError && !departmentListError
 
-  if (error) {
+  if (employeeListError) {
     return (
       <div className="container mx-auto p-4">
         <Card className="bg-destructive/10 border-destructive/20">
@@ -152,7 +166,7 @@ export default function EmployeeList() {
             <AlertCircle className="h-10 w-10 text-destructive" />
             <div>
               <h3 className="text-lg font-semibold">Error Loading Employees</h3>
-              <p className="text-destructive">{error}</p>
+              <p className="text-destructive">{employeeListError}</p>
               <Button
                 className="mt-4"
                 onClick={() => dispatch(fetchEmployees({
@@ -192,9 +206,15 @@ export default function EmployeeList() {
             <SelectValue placeholder="Sort by department" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="Information Technology">Information Technology</SelectItem>
-            <SelectItem value="HR">Human Resources</SelectItem>
-            <SelectItem value="Finance">Finance</SelectItem>
+            {departmentListLoading ? (
+              <SelectItem value="Loading" disabled>Loading...</SelectItem>
+            ) : (
+              list.map((dept) => (
+                <SelectItem key={dept.id} value={dept.name}>
+                  {dept.name}
+                </SelectItem>
+              ))
+            )}
           </SelectContent>
         </Select>
 

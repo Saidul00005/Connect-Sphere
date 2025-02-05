@@ -8,7 +8,7 @@ from rest_framework_api_key.permissions import HasAPIKey
 from .pagination import CustomPagination
 from rest_framework.throttling import UserRateThrottle
 from django.utils import timezone
-from django.db.models import OuterRef,Count,Subquery,Prefetch,IntegerField
+from django.db.models import OuterRef,Count,Subquery,Prefetch,IntegerField,Q
 from django.core.exceptions import ValidationError
 
 class ChatRoomViewSet(viewsets.ModelViewSet):
@@ -44,9 +44,25 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
+        
+        if not hasattr(request.user, 'role') or request.user.role is None:
+            raise PermissionDenied("You do not have permission to view chat rooms.")
+
+        search_query = request.GET.get('search', None)
+
+        filters = Q()
+        if search_query:
+            filters &= Q(name__icontains=search_query)
+
+        if filters:
+            queryset = queryset.filter(filters).order_by('id')
+        else:
+            queryset = queryset.order_by('id')
+
+
         paginator = CustomPagination()
         paginated_queryset = paginator.paginate_queryset(queryset, request)
-        
+
         if paginated_queryset is not None:
             serializer = self.get_serializer(paginated_queryset, many=True)
             return paginator.get_paginated_response(serializer.data)

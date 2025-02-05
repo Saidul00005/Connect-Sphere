@@ -1,60 +1,47 @@
-import { NextRequest, NextResponse } from 'next/server'
-import axios from 'axios'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { NextRequest, NextResponse } from 'next/server';
+import axios from 'axios';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions);
 
-    if (!session?.user?.token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!session?.user || !session.user.token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const response = await axios.get(
-      `${process.env.BACKEND_URL}/api/chat/rooms`,
-      {
-        headers: {
-          Authorization: `Bearer ${session.user.token}`,
-          'Content-Type': 'application/json'
-        }
+    const searchParams = request.nextUrl.searchParams;
+    const page = searchParams.get('page') || '1';
+    const search = searchParams.get('search');
+
+    const queryParams = new URLSearchParams({
+      page,
+      ...(search && { search })
+    }).toString();
+
+    const backendUrl = `${process.env.BACKEND_URL}/api/chat/rooms/?${queryParams}`;
+
+    const response = await axios.get(backendUrl, {
+      headers: {
+        'Authorization': `Bearer ${session.user.token}`,
+        'X-Api-Key': process.env.BACKEND_API_KEY || ''
       }
-    )
+    });
 
-    return NextResponse.json(response.data)
+    return NextResponse.json(response.data);
   } catch (error: any) {
-    return NextResponse.json(
-      { error: error.response?.data?.error || error.message },
-      { status: error.response?.status || 500 }
-    )
-  }
-}
+    console.error('Chat Rooms API error:', error);
 
-export async function POST(req: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    const body = await req.json()
-
-    if (!session?.user?.token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status || 500;
+      const message = error.response?.data?.error || error.message || "An unknown error occurred";
+      return NextResponse.json({ error: message }, { status });
     }
 
-    const response = await axios.post(
-      `${process.env.BACKEND_URL}/api/chat/rooms`,
-      body,
-      {
-        headers: {
-          Authorization: `Bearer ${session.user.token}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    )
-
-    return NextResponse.json(response.data)
-  } catch (error: any) {
     return NextResponse.json(
-      { error: error.response?.data?.error || error.message },
-      { status: error.response?.status || 500 }
-    )
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }

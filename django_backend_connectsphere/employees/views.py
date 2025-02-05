@@ -7,6 +7,7 @@ from .serializers import (
     DepartmentSerializer,
     EmployeeSerializer,
     EmployeeDocumentSerializer,
+    DepartmentSerializerForEmployeeSerializer,
     CustomEmployeeSerializerFor_list_employee_action
 )
 from rest_framework.permissions import IsAuthenticated
@@ -79,6 +80,12 @@ class DepartmentViewSet(viewsets.ModelViewSet):
         {"detail": "Deleting department is not permitted through this route."},
         status=status.HTTP_405_METHOD_NOT_ALLOWED
         )
+
+    @action(detail=False, methods=['get'])
+    def departments_list_for_request_user(self, request):
+        departments = Department.objects.all().order_by('id')
+        serializer = DepartmentSerializerForEmployeeSerializer(departments, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.all()
