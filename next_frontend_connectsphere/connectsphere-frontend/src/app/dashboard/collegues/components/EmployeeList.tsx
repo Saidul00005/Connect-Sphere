@@ -74,7 +74,7 @@ export default function EmployeeList() {
     if (status === "authenticated" && list.length === 0 && !departmentListLoading && !departmentListError) {
       dispatch(fetchDepartments());
     }
-  }, [dispatch, status, departmentListLoading, departmentListLoading]);
+  }, [dispatch, status, departmentListLoading, departmentListError]);
 
   const handlePreviousPage = useCallback(() => {
     if (previousPageUrl && !employeeListLoading && !departmentListLoading) {
@@ -92,7 +92,6 @@ export default function EmployeeList() {
           })
         );
       } else {
-        // Otherwise, just update the current page pointer.
         dispatch(setCurrentPage({ [filterKey]: prevPageNumber }));
       }
     }

@@ -74,7 +74,7 @@ export const fetchChatRooms = createAsyncThunk<
   }
 );
 
-const chatRoomsSlice = createSlice({
+const chatRoomsSliceForUser = createSlice({
   name: "chatRooms",
   initialState,
   reducers: {
@@ -131,5 +131,5 @@ const chatRoomsSlice = createSlice({
   },
 });
 
-export const { resetChatRooms, setCurrentPage } = chatRoomsSlice.actions;
-export default chatRoomsSlice.reducer;
+export const { resetChatRooms, setCurrentPage } = chatRoomsSliceForUser.actions;
+export default chatRoomsSliceForUser.reducer;

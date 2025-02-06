@@ -1,20 +1,22 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { TypedUseSelectorHook, useSelector, useDispatch } from 'react-redux';
 import profileReducer from '@/app/redux/slices/profileSlice';
-import chatRoomReducer from '@/app/redux/slices/chatRoomSlice';
+import chatRoomsSliceForUser from '@/app/redux/slices/chatRoomSlice';
 import userProfileReducer from '@/app/redux/slices/userProfileSlice';
-import employeeListForUserReducer from '@/app/redux/slices/employeeListForUserSlice';
+import employeeListForUser from '@/app/redux/slices/employeeListForUserSlice';
 import employeeProfileSliceForUser from '@/app/redux/slices/employeeProfileSliceForUser';
 import DepartmentListSliceForUser from '@/app/redux/slices/DepartmentListSliceForUser';
+import chatMessagesSliceForUser from '@/app/redux/slices/chatMessagesSlice';
 
 export const store = configureStore({
   reducer: {
     profile: profileReducer,
-    chatRooms: chatRoomReducer,
+    chatRooms: chatRoomsSliceForUser,
     userProfile: userProfileReducer,
-    employees: employeeListForUserReducer,
+    employees: employeeListForUser,
     employee: employeeProfileSliceForUser,
-    departments: DepartmentListSliceForUser
+    departments: DepartmentListSliceForUser,
+    chatMessages: chatMessagesSliceForUser
   },
 });
 

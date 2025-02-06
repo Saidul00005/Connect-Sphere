@@ -18,6 +18,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { format } from "date-fns"
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import ChatMessagesComponent from "@/app/dashboard/chat/chat-history/components/chatMessagesComponent"
 
 export default function ChatHistory() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function ChatHistory() {
     pages,
     currentPage,
     loading: ChatroomListLoading,
-    error
+    error: ChatroomListError
   } = useAppSelector((state) => state.chatRooms)
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("")
@@ -58,21 +59,6 @@ export default function ChatHistory() {
       dispatch(fetchChatRooms({ pageUrl: null, search: searchQuery }));
     }
   }, [status, searchQuery, dispatch]);
-
-  const handleSearchClick = () => {
-    if (searchInputRef.current) {
-      setSearchQuery(searchInputRef.current.value);
-    }
-  }
-
-  const handleClearSearch = () => {
-    setSearchQuery("");
-    if (searchInputRef.current) {
-      searchInputRef.current.value = "";
-    }
-    dispatch(resetChatRooms());
-    dispatch(fetchChatRooms({ pageUrl: null, search: searchQuery }));
-  };
 
   const handleNextPage = useCallback(() => {
     if (nextPageUrl && !ChatroomListLoading) {
@@ -112,6 +98,22 @@ export default function ChatHistory() {
     }
   }, [previousPageUrl, ChatroomListLoading, dispatch, pages, searchQuery, filterKey]);
 
+  const handleSearchClick = () => {
+    if (searchInputRef.current) {
+      setSearchQuery(searchInputRef.current.value);
+    }
+  }
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    if (searchInputRef.current) {
+      searchInputRef.current.value = "";
+    }
+    dispatch(resetChatRooms());
+    dispatch(fetchChatRooms({ pageUrl: null, search: "" }));
+  };
+
+
   // useEffect(() => {
   //   if (selectedRoom) {
   //     dispatch(fetchMessages(selectedRoom))
@@ -145,6 +147,7 @@ export default function ChatHistory() {
         <div className="relative flex items-center">
           <Input
             ref={searchInputRef}
+            type="text"
             placeholder="Search chat room name"
             className="pr-10 bg-transparent"
           />
@@ -159,28 +162,53 @@ export default function ChatHistory() {
         </div>
       </div>
       <ScrollArea className="flex-1">
-        {rooms.map((room) => (
-          <button
-            key={room.id}
-            onClick={() => handleRoomSelect(room.id)}
-            className={`w-full p-4 text-left hover:bg-accent ${selectedRoom === room.id ? "bg-accent" : ""}`}
-          >
-            <div className="flex items-center">
-              <h3 className="font-medium">{room.name}</h3>
-              {room.unread_messages_count > 0 && (
-                <span className="ml-2 inline-flex items-center justify-center w-6 h-6 bg-primary text-primary-foreground rounded-full text-xs">
-                  {room.unread_messages_count}
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground">{room.type === "GROUP" ? "Group Chat" : "Direct Message"}</p>
-            {room.last_message && (
-              <p className="text-sm text-muted-foreground truncate">
-                {`${room.last_message.sender.first_name}: ${room.last_message.content}`}
-              </p>
+        {ChatroomListLoading ? (
+          <div className="space-y-4 p-4">
+            {[...Array(10)].map((_, index) => (
+              <div key={index} className="animate-pulse space-y-2">
+                <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-3/4"></div>
+                <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-1/2"></div>
+              </div>
+            ))}
+          </div>
+        ) : ChatroomListError ? (
+          <div className="flex items-center justify-center h-full text-red-500 text-sm">
+            Failed to load chat rooms. Try again later.
+          </div>
+        ) : (
+          <>
+            {searchQuery && (
+              <div className="px-4 py-2 text-sm text-gray-500">
+                Search results for &quot;{searchQuery}&quot;
+              </div>
             )}
-          </button>
-        ))}
+            {rooms.map((room) => (
+              <button
+                key={room.id}
+                onClick={() => handleRoomSelect(room.id)}
+                className={`w-full p-4 text-left hover:bg-accent ${selectedRoom === room.id ? "bg-accent" : ""
+                  }`}
+              >
+                <div className="flex items-center">
+                  <h3 className="font-medium">{room.name}</h3>
+                  {room.unread_messages_count > 0 && (
+                    <span className="ml-2 inline-flex items-center justify-center w-6 h-6 bg-primary text-primary-foreground rounded-full text-xs">
+                      {room.unread_messages_count}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {room.type === "GROUP" ? "Group Chat" : "Direct Message"}
+                </p>
+                {room.last_message && (
+                  <p className="text-sm text-muted-foreground truncate">
+                    {`${room.last_message.sender.first_name}: ${room.last_message.content}`}
+                  </p>
+                )}
+              </button>
+            ))}
+          </>
+        )}
       </ScrollArea>
 
       <div className="flex items-center justify-center gap-4 mt-4 mb-4">
@@ -298,110 +326,42 @@ export default function ChatHistory() {
           )}
         </div>
 
-        {/* {selectedRoom ? (
+        {selectedRoom && (
           <>
-            <ScrollArea className="flex-1 p-4">
-              {messages.map((message) => (
-                <div key={message.id} className="mb-4 group">
-                  <div className="flex items-start gap-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">User {message.sender}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(message.timestamp), "M/d/yyyy, h:mm a")}
-                        </span>
-                      </div>
-                      {editingMessage?.id === message.id ? (
-                        <Input
-                          value={editingMessage.content}
-                          onChange={(e) => setEditingMessage({ ...editingMessage, content: e.target.value })}
-                          onBlur={() => handleMessageEdit(message.id, editingMessage.content)}
-                          className="mt-1"
-                        />
-                      ) : (
-                        <p className="mt-1">{message.content}</p>
-                      )}
-                      {message.is_deleted && <span className="text-xs text-muted-foreground">(deleted)</span>}
-                    </div>
-                    <div className="opacity-0 group-hover:opacity-100 flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setEditingMessage({ id: message.id, content: message.content })}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleMessageDelete(message.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => setSelectedMessage(message.id)}>
-                        <Info className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </ScrollArea>
-
-            <div className="border-t border-gray-800 p-4">
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault()
-                  if (newMessage.trim() && selectedRoom) {
-                    await dispatch(createMessage({ roomId: selectedRoom, content: newMessage }))
-                    setNewMessage("")
-                  }
-                }}
-                className="flex gap-2"
-              >
-                <Input
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  className="bg-transparent"
-                />
-                <Button type="submit" disabled={!newMessage.trim()}>
-                  Send
-                </Button>
-              </form>
-            </div>
+            <ChatMessagesComponent
+              roomId={String(currentRoom?.id)}
+            />
           </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            Select a chat room to start messaging
-          </div>
-        )} */}
+        )}
 
-      </div>
+        {selectedRoom && (
+          <>
+            <Dialog
+              open={isParticipantsOpen}
+              onOpenChange={(open) => {
+                setIsParticipantsOpen(open)
+              }}
+              modal={true}
+            >
+              <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()}>
+                <DialogHeader>
+                  <DialogTitle>Chat Participants</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-2 text-sm">
+                  {currentRoom?.participants.map((participant) => (
+                    <div
+                      key={participant.id}
+                      className={`p-2 rounded-lg ${participant.id === currentRoom.created_by.id ? "bg-primary text-primary-foreground" : "bg-accent"
+                        }`}
+                    >
+                      {participant.first_name + " " + participant.last_name} {participant.id === currentRoom.created_by.id && " (Admin)"}
+                    </div>
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
 
-      {selectedRoom && (
-        <>
-          <Dialog
-            open={isParticipantsOpen}
-            onOpenChange={(open) => {
-              setIsParticipantsOpen(open)
-            }}
-            modal={true}
-          >
-            <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()}>
-              <DialogHeader>
-                <DialogTitle>Chat Participants</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-2 text-sm">
-                {currentRoom?.participants.map((participant) => (
-                  <div
-                    key={participant.id}
-                    className={`p-2 rounded-lg ${participant.id === currentRoom.created_by.id ? "bg-primary text-primary-foreground" : "bg-accent"
-                      }`}
-                  >
-                    {participant.first_name + " " + participant.last_name} {participant.id === currentRoom.created_by.id && " (Admin)"}
-                  </div>
-                ))}
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          {/* <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
+            {/* <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Message Details</DialogTitle>
@@ -422,8 +382,9 @@ export default function ChatHistory() {
               )}
             </DialogContent>
           </Dialog> */}
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   )
 }
