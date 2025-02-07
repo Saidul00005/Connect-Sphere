@@ -1,27 +1,46 @@
 "use client"
 
-import { useEffect, useCallback } from "react"
+import { useEffect, useCallback, useState } from "react"
 import { useAppDispatch, useAppSelector } from "@/app/redux/store"
-import { fetchMessages, editMessage, deleteMessage } from "@/app/redux/slices/chatMessagesSlice"
+import { fetchMessages, editMessage, deleteMessage, sendMessage } from "@/app/redux/slices/chatMessagesSlice"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { MoreVertical, ArrowUp, ArrowDown, Check, CheckCheck } from "lucide-react"
+import { MoreVertical, ArrowUp, ArrowDown, Check, CheckCheck, SendHorizontal } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Form, FormControl, FormField, FormItem } from "@/components/ui/form"
+import { useForm } from "react-hook-form"
 
 interface MessagePageProps {
   roomId: string
 }
 
+interface MessageFormData {
+  message: string;
+}
+
 export default function ChatMessagesComponent({ roomId }: MessagePageProps) {
   const router = useRouter()
+  const dispatch = useAppDispatch()
   const { data: session, status } = useSession({
     required: true,
     onUnauthenticated() {
       router.push("/")
     },
   })
-  const dispatch = useAppDispatch()
+
   const { pages, currentPage, loading, error } = useAppSelector((state) => state.chatMessages)
+
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editMessageId, setEditMessageId] = useState<number | null>(null)
+  const [editContent, setEditContent] = useState("")
 
   const currentPageNumber = currentPage[roomId] || "1"
   const pageData = pages[roomId]?.[currentPageNumber]
@@ -33,7 +52,7 @@ export default function ChatMessagesComponent({ roomId }: MessagePageProps) {
     if (status === "authenticated" && !pageData && !loading && !error) {
       dispatch(fetchMessages({ pageUrl: null, roomId }))
     }
-  }, [roomId, pageData, loading, error, dispatch])
+  }, [roomId, pageData, loading, error, dispatch, status])
 
   const handleLoadMore = useCallback(() => {
     if (nextPageUrl && !loading) {
@@ -47,13 +66,84 @@ export default function ChatMessagesComponent({ roomId }: MessagePageProps) {
     }
   }, [previousPageUrl, loading, dispatch, roomId])
 
+  const handleEdit = (messageId: number, content: string) => {
+    setEditMessageId(messageId)
+    setEditContent(content)
+    setEditDialogOpen(true)
+  }
+
+  const handleDelete = (messageId: number) => {
+    if (window.confirm("Are you sure you want to delete this message?")) {
+      dispatch(deleteMessage({ messageId, roomId }))
+    }
+  }
+
+  const handleSaveEdit = () => {
+    if (editMessageId && editContent.trim()) {
+      dispatch(editMessage({
+        messageId: editMessageId,
+        content: editContent,
+        roomId: roomId
+      }))
+      setEditDialogOpen(false)
+      setEditContent("")
+      setEditMessageId(null)
+    }
+  }
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString()
   }
 
+  const MessageInput = () => {
+    const form = useForm<MessageFormData>({
+      defaultValues: {
+        message: "",
+      },
+    })
+
+    const onSubmit = async (data: MessageFormData) => {
+      if (data.message.trim()) {
+        await dispatch(sendMessage({ content: data.message, roomId }))
+        form.reset()
+      }
+    }
+
+    return (
+      <div className="border-t p-4">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex gap-2">
+            <FormField
+              control={form.control}
+              name="message"
+              render={({ field }) => (
+                <FormItem className="flex-1">
+                  <FormControl>
+                    <Input
+                      placeholder="Type a message..."
+                      {...field}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault()
+                          form.handleSubmit(onSubmit)()
+                        }
+                      }}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <Button type="submit" size="icon">
+              <SendHorizontal className="h-4 w-4" />
+            </Button>
+          </form>
+        </Form>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-full">
-
       {previousPageUrl && (
         <Button onClick={handleLoadPrevious} disabled={loading} className="self-center my-2" variant="ghost" size="sm">
           <ArrowUp className="mr-2 h-4 w-4" /> Load Previous
@@ -76,9 +166,25 @@ export default function ChatMessagesComponent({ roomId }: MessagePageProps) {
                   <span className="font-medium text-sm">
                     {isCurrentUser ? "You" : `${message.sender.first_name} ${message.sender.last_name}`}
                   </span>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 -mr-1.5 -mt-1.5">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
+                  {isCurrentUser && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 -mr-1.5 -mt-1.5">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEdit(message.id, message.content)}>
+                          Edit Message
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDelete(message.id)}
+                          className="text-red-600">
+                          Delete Message
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
                 <p className="mt-1 mb-2">
                   {message.is_deleted ? "This message was deleted" : message.content}
@@ -86,7 +192,6 @@ export default function ChatMessagesComponent({ roomId }: MessagePageProps) {
                 <div className={`text-xs space-y-0.5 ${isCurrentUser ? "text-gray-300" : "text-gray-500"}`}>
                   <p>{formatDate(message.timestamp)}</p>
                   {message.is_modified && <p>Edited at {formatDate(message.last_modified_at)}</p>}
-                  {/* {message.is_deleted && <p>This message was deleted</p>} */}
                   {message.is_restored && <p>Restored at {formatDate(message.last_restore_at)}</p>}
                   <div className="flex items-center gap-1">
                     {message.read_by && message.read_by.length > 0 ? (
@@ -113,7 +218,27 @@ export default function ChatMessagesComponent({ roomId }: MessagePageProps) {
           Load More <ArrowDown className="ml-2 h-4 w-4" />
         </Button>
       )}
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Message</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            className="my-4"
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <MessageInput />
     </div>
   )
 }
-

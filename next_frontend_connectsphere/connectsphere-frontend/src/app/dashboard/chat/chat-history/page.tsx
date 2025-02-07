@@ -113,28 +113,8 @@ export default function ChatHistory() {
     dispatch(fetchChatRooms({ pageUrl: null, search: "" }));
   };
 
-
-  // useEffect(() => {
-  //   if (selectedRoom) {
-  //     dispatch(fetchMessages(selectedRoom))
-  //   }
-  // }, [dispatch, selectedRoom])
-
   const currentRoom = rooms.find((r) => r.id === selectedRoom)
   const filteredRooms = rooms.filter((room) => room.name.toLowerCase().includes(searchQuery.toLowerCase()))
-
-  // const handleMessageEdit = async (messageId: number, content: string) => {
-  //   if (selectedRoom) {
-  //     await dispatch(updateMessage({ messageId, roomId: selectedRoom, content }))
-  //     setEditingMessage(null)
-  //   }
-  // }
-
-  // const handleMessageDelete = async (messageId: number) => {
-  //   if (selectedRoom) {
-  //     await dispatch(deleteMessage({ messageId, roomId: selectedRoom }))
-  //   }
-  // }
 
   const handleRoomSelect = (roomId: number) => {
     setSelectedRoom(roomId)
@@ -360,28 +340,6 @@ export default function ChatHistory() {
                 </div>
               </DialogContent>
             </Dialog>
-
-            {/* <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Message Details</DialogTitle>
-              </DialogHeader>
-              {selectedMessage && messages.find((m) => m.id === selectedMessage) && (
-                <div className="space-y-2">
-                  <p>
-                    <strong>Sender:</strong> User {messages.find((m) => m.id === selectedMessage)?.sender}
-                  </p>
-                  <p>
-                    <strong>Time:</strong>{" "}
-                    {format(new Date(messages.find((m) => m.id === selectedMessage)?.timestamp || ""), "PPpp")}
-                  </p>
-                  <p>
-                    <strong>Message ID:</strong> {selectedMessage}
-                  </p>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog> */}
           </>
         )}
       </div>

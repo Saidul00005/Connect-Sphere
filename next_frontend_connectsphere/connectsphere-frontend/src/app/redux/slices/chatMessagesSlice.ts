@@ -72,28 +72,56 @@ export const fetchMessages = createAsyncThunk<
   }
 );
 
+export const sendMessage = createAsyncThunk<
+  any,
+  { content: string; roomId: string },
+  { rejectValue: string }
+>("chatMessages/send", async ({ content, roomId }, { rejectWithValue }) => {
+  try {
+    const response = await axios.post('/api/chat/sendMessage/', {
+      room: parseInt(roomId),
+      content
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      return rejectWithValue(error.response?.data?.error || "Failed to send message");
+    }
+    return rejectWithValue("Failed to send message");
+  }
+});
+
 export const editMessage = createAsyncThunk<
   { messageId: number; content: string },
-  { messageId: number; content: string },
+  { messageId: number; content: string; roomId: string },
   { rejectValue: string }
->("chatMessages/edit", async ({ messageId, content }, { rejectWithValue }) => {
+>("chatMessages/edit", async ({ messageId, content, roomId }, { rejectWithValue }) => {
   try {
-    await axios.patch(`/api/chat/messages/${messageId}/`, { content });
+    const response = await axios.patch(
+      `/api/chat/messages/${messageId}?room_id=${roomId}`,
+      { content }
+    );
     return { messageId, content };
   } catch (error) {
+    if (axios.isAxiosError(error)) {
+      return rejectWithValue(error.response?.data?.error || "Failed to edit message");
+    }
     return rejectWithValue("Failed to edit message");
   }
 });
 
 export const deleteMessage = createAsyncThunk<
   number,
-  number,
+  { messageId: number; roomId: string },
   { rejectValue: string }
->("chatMessages/delete", async (messageId, { rejectWithValue }) => {
+>("chatMessages/delete", async ({ messageId, roomId }, { rejectWithValue }) => {
   try {
-    await axios.delete(`/api/chat/messages/${messageId}/`);
+    await axios.delete(`/api/chat/messages/${messageId}?room_id=${roomId}`);
     return messageId;
   } catch (error) {
+    if (axios.isAxiosError(error)) {
+      return rejectWithValue(error.response?.data?.error || "Failed to delete message");
+    }
     return rejectWithValue("Failed to delete message");
   }
 });
@@ -148,6 +176,19 @@ const chatMessagesSliceForUser = createSlice({
       .addCase(fetchMessages.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || "An error occurred";
+      })
+      .addCase(sendMessage.fulfilled, (state, action) => {
+        const roomId = action.meta.arg.roomId;
+        const currentPageNumber = state.currentPage[roomId];
+
+        if (state.pages[roomId]?.[currentPageNumber]) {
+          state.pages[roomId][currentPageNumber].results.push({
+            ...action.payload,
+            is_sent: true,
+            is_delivered: false,
+            read_by: []
+          });
+        }
       })
       .addCase(editMessage.fulfilled, (state, action) => {
         const { messageId, content } = action.payload;

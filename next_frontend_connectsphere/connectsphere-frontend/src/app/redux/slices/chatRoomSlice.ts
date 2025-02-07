@@ -6,6 +6,7 @@ import {
   ChatRoomResponse,
   PageData,
   getFilterKey,
+  ChatRoom
 } from "@/app/dashboard/chat/chat-history/types/chatHistoryTypes";
 import { RootState } from "@/app/redux/store";
 
@@ -74,6 +75,29 @@ export const fetchChatRooms = createAsyncThunk<
   }
 );
 
+export const createChatRoom = createAsyncThunk<
+  ChatRoom,
+  { name: string; type: string; participants: number[] },
+  { rejectValue: string }
+>(
+  "chatRooms/create",
+  async (chatRoomData, { rejectWithValue }) => {
+    try {
+      const response = await axios.post<ChatRoom>(
+        "/api/chat/rooms/",
+        chatRoomData
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        return rejectWithValue(error.response?.data?.error || "Failed to create chat room");
+      }
+      return rejectWithValue("Failed to create chat room");
+    }
+  }
+);
+
+
 const chatRoomsSliceForUser = createSlice({
   name: "chatRooms",
   initialState,
@@ -127,7 +151,35 @@ const chatRoomsSliceForUser = createSlice({
       .addCase(fetchChatRooms.rejected, (state, action) => {
         state.loading = false;
         state.error = (action.payload as string) || "An error occurred";
-      });
+      })
+      .addCase(createChatRoom.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createChatRoom.fulfilled, (state, action) => {
+        state.loading = false;
+        const newChatRoom = action.payload;
+
+        // Optionally, you could add it to the cache, depending on the context
+        const filterKey = getFilterKey("");  // This could depend on search or filters
+        if (!state.pages[filterKey]) {
+          state.pages[filterKey] = {};
+        }
+
+        // Assuming the new chat room should appear on page 1 or the active page
+        const currentPage = state.currentPage[filterKey] || "1";
+        if (!state.pages[filterKey][currentPage]) {
+          state.pages[filterKey][currentPage] = { results: [], next: null, previous: null, count: 0 };
+        }
+
+        // Add the new chat room to the current page's results
+        state.pages[filterKey][currentPage].results.push(newChatRoom);
+        state.pages[filterKey][currentPage].count += 1;
+      })
+      .addCase(createChatRoom.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || "Failed to create chat room";
+      })
   },
 });
 

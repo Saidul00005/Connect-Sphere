@@ -78,7 +78,7 @@ export default function CreateChatRoom() {
           </CardHeader>
           <CardContent>
             {!isCreated ? (
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form className="space-y-6" onSubmit={handleSubmit}>
                 <div className="space-y-2">
                   <Label htmlFor="name">Room Name</Label>
                   <Input
@@ -146,4 +146,3 @@ export default function CreateChatRoom() {
     </div>
   )
 }
-
