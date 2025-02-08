@@ -5,7 +5,8 @@ import { useAppDispatch, useAppSelector } from "@/app/redux/store"
 import {
   fetchChatRooms,
   resetChatRooms,
-  setCurrentPage
+  setCurrentPage,
+  deleteChatRoom
 } from "@/app/redux/slices/chatRoomSlice"
 import { getFilterKey } from "@/app/dashboard/chat/chat-history/types/chatHistoryTypes"
 import { Search, MoreVertical, Edit2, Trash2, Info, Menu, ChevronLeft, ChevronRight, X } from "lucide-react"
@@ -22,7 +23,7 @@ import ChatMessagesComponent from "@/app/dashboard/chat/chat-history/components/
 
 export default function ChatHistory() {
   const router = useRouter();
-  const { status } = useSession({
+  const { data: session, status } = useSession({
     required: true,
     onUnauthenticated() {
       router.push("/");
@@ -38,10 +39,7 @@ export default function ChatHistory() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedRoom, setSelectedRoom] = useState<number | null>(null)
-  const [selectedMessage, setSelectedMessage] = useState<number | null>(null)
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false)
-  const [editingMessage, setEditingMessage] = useState<{ id: number; content: string } | null>(null)
-  const [newMessage, setNewMessage] = useState("")
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false)
 
@@ -114,12 +112,13 @@ export default function ChatHistory() {
   };
 
   const currentRoom = rooms.find((r) => r.id === selectedRoom)
-  const filteredRooms = rooms.filter((room) => room.name.toLowerCase().includes(searchQuery.toLowerCase()))
 
   const handleRoomSelect = (roomId: number) => {
     setSelectedRoom(roomId)
     setIsMobileSidebarOpen(false)
   }
+
+  const shouldRenderMessages = selectedRoom && currentRoom && !currentRoom.is_deleted;
 
   const Sidebar = () => (
     <div className="h-full flex flex-col">
@@ -245,7 +244,7 @@ export default function ChatHistory() {
                 {isDesktopSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
               </Button>
 
-              <h2 className="text-xl font-semibold">{selectedRoom && currentRoom ? currentRoom?.name : "Select a chat"}</h2>
+              <h2 className="text-xl font-semibold"> {shouldRenderMessages ? currentRoom?.name : "Select a chat"}</h2>
             </div>
 
             {selectedRoom && (
@@ -278,12 +277,43 @@ export default function ChatHistory() {
                   >
                     View Participants
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-red-500"
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+
+                      if (window.confirm('Are you sure you want to delete this chat room?')) {
+                        try {
+                          await dispatch(deleteChatRoom(selectedRoom)).unwrap();
+                          setSelectedRoom(null);
+
+                          // Refresh the current page
+                          const currentFilterKey = getFilterKey(searchQuery);
+                          const currentPageNumber = currentPage[currentFilterKey] || "1";
+
+                          // Reset and fetch fresh data
+                          dispatch(resetChatRooms());
+                          dispatch(fetchChatRooms({
+                            pageUrl: null,
+                            search: searchQuery
+                          }));
+
+                        } catch (error) {
+                          console.error('Failed to delete chat room:', error);
+                          // You might want to show an error toast or message here
+                        }
+                      }
+                    }}
+                  >
+                    Delete Chat Room
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
           </div>
 
-          {selectedRoom && currentRoom ? (
+          {shouldRenderMessages ? (
             <div className="space-y-1 text-sm text-gray-400">
               <p>
                 Created by:{" "}
@@ -301,17 +331,15 @@ export default function ChatHistory() {
             </div>
           ) : (
             <div className="space-y-1 text-sm text-gray-400">
-              <p>No chatroom selected.</p>
+              <p>No chatroom selected or the chatroom has been deleted.</p>
             </div>
           )}
         </div>
 
-        {selectedRoom && (
-          <>
-            <ChatMessagesComponent
-              roomId={String(currentRoom?.id)}
-            />
-          </>
+        {shouldRenderMessages && (
+          <ChatMessagesComponent
+            roomId={String(currentRoom?.id)}
+          />
         )}
 
         {selectedRoom && (
@@ -328,15 +356,25 @@ export default function ChatHistory() {
                   <DialogTitle>Chat Participants</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-2 text-sm">
-                  {currentRoom?.participants.map((participant) => (
-                    <div
-                      key={participant.id}
-                      className={`p-2 rounded-lg ${participant.id === currentRoom.created_by.id ? "bg-primary text-primary-foreground" : "bg-accent"
-                        }`}
-                    >
-                      {participant.first_name + " " + participant.last_name} {participant.id === currentRoom.created_by.id && " (Admin)"}
-                    </div>
-                  ))}
+                  {currentRoom?.participants.map((participant) => {
+                    const displayName =
+                      session && participant.id === Number(session.user.id)
+                        ? "You"
+                        : `${participant.first_name} ${participant.last_name}`;
+
+                    return (
+                      <div
+                        key={participant.id}
+                        className={`p-2 rounded-lg ${participant.id === currentRoom.created_by.id
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-accent"
+                          }`}
+                      >
+                        {displayName}{" "}
+                        {participant.id === currentRoom.created_by.id && " (Admin)"}
+                      </div>
+                    );
+                  })}
                 </div>
               </DialogContent>
             </Dialog>

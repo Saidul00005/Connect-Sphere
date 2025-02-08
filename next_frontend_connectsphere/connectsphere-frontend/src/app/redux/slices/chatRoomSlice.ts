@@ -97,6 +97,24 @@ export const createChatRoom = createAsyncThunk<
   }
 );
 
+export const deleteChatRoom = createAsyncThunk<
+  number,
+  number,
+  { rejectValue: string }
+>(
+  "chatRooms/delete",
+  async (roomId, { rejectWithValue }) => {
+    try {
+      await axios.delete(`/api/chat/rooms/${roomId}`);
+      return roomId;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw rejectWithValue(error.response?.data?.error || "Failed to delete chat room");
+      }
+      throw rejectWithValue("Failed to delete chat room");
+    }
+  }
+);
 
 const chatRoomsSliceForUser = createSlice({
   name: "chatRooms",
@@ -180,6 +198,34 @@ const chatRoomsSliceForUser = createSlice({
         state.loading = false;
         state.error = action.payload || "Failed to create chat room";
       })
+      .addCase(deleteChatRoom.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteChatRoom.fulfilled, (state, action) => {
+        state.loading = false;
+        const deletedRoomId = action.payload;
+
+        // Update all pages that might contain the deleted room
+        Object.keys(state.pages).forEach(filterKey => {
+          Object.keys(state.pages[filterKey]).forEach(pageKey => {
+            const page = state.pages[filterKey][pageKey];
+
+            // Remove the deleted room from results
+            const initialLength = page.results.length;
+            page.results = page.results.filter(room => room.id !== deletedRoomId);
+
+            // Update count if room was removed
+            if (page.results.length < initialLength) {
+              page.count = Math.max(0, (page.count || 0) - 1);
+            }
+          });
+        });
+      })
+      .addCase(deleteChatRoom.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || "Failed to delete chat room";
+      });
   },
 });
 

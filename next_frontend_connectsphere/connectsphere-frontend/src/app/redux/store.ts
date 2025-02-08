@@ -7,6 +7,7 @@ import employeeListForUser from '@/app/redux/slices/employeeListForUserSlice';
 import employeeProfileSliceForUser from '@/app/redux/slices/employeeProfileSliceForUser';
 import DepartmentListSliceForUser from '@/app/redux/slices/DepartmentListSliceForUser';
 import chatMessagesSliceForUser from '@/app/redux/slices/chatMessagesSlice';
+import createChatRoomFormForUser from '@/app/redux/slices/createChatRoomSlice';
 
 export const store = configureStore({
   reducer: {
@@ -16,7 +17,8 @@ export const store = configureStore({
     employees: employeeListForUser,
     employee: employeeProfileSliceForUser,
     departments: DepartmentListSliceForUser,
-    chatMessages: chatMessagesSliceForUser
+    chatMessages: chatMessagesSliceForUser,
+    createChatRoomForm: createChatRoomFormForUser
   },
 });
 

@@ -1,6 +1,6 @@
 export interface Employee {
   id: number;
-  user_id: number;
+  user__id: number;
   user__first_name: string | null;
   user__last_name: string | null;
   user__role_name: string;
@@ -33,8 +33,9 @@ export interface FetchEmployeeParams {
   pageUrl: string | null;
   department: string;
   search: string;
+  component: string;
 }
 
-export const getFilterKey = (department: string, search: string): string => {
-  return `dept=${department || ""}&search=${search || ""}`;
+export const getFilterKey = (component: string, department: string, search: string) => {
+  return `${component}_${department}_${search}`;
 };

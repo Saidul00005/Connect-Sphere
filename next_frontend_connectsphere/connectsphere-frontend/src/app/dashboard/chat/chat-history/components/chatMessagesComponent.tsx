@@ -166,7 +166,7 @@ export default function ChatMessagesComponent({ roomId }: MessagePageProps) {
                   <span className="font-medium text-sm">
                     {isCurrentUser ? "You" : `${message.sender.first_name} ${message.sender.last_name}`}
                   </span>
-                  {isCurrentUser && (
+                  {isCurrentUser && !message.is_deleted && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-6 w-6 -mr-1.5 -mt-1.5">
@@ -187,7 +187,7 @@ export default function ChatMessagesComponent({ roomId }: MessagePageProps) {
                   )}
                 </div>
                 <p className="mt-1 mb-2">
-                  {message.is_deleted ? "This message was deleted" : message.content}
+                  {message.content}
                 </p>
                 <div className={`text-xs space-y-0.5 ${isCurrentUser ? "text-gray-300" : "text-gray-500"}`}>
                   <p>{formatDate(message.timestamp)}</p>

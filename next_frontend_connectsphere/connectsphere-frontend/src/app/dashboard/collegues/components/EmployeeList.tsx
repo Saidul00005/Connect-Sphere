@@ -54,7 +54,7 @@ export default function EmployeeList() {
   const [department, setDepartment] = useState("");
   const [selectedEmployeeUserId, setSelectedEmployeeUserId] = useState<number | null>(null);
 
-  const filterKey = getFilterKey(department, searchTerm);
+  const filterKey = getFilterKey(department, searchTerm, "employeeList");
   const currentPageNumber = parseInt(currentPage[filterKey] || "1");
   const pageData = pages[filterKey]?.[currentPage[filterKey] || "1"];
   const employees: Employee[] = pageData ? pageData.results : [];
@@ -65,8 +65,8 @@ export default function EmployeeList() {
 
   useEffect(() => {
     if (status === "authenticated" && employees.length === 0) {
-      dispatch(resetEmployees());
-      dispatch(fetchEmployees({ pageUrl: null, department, search: searchTerm }));
+      dispatch(resetEmployees("employeeList"));
+      dispatch(fetchEmployees({ pageUrl: null, department, search: searchTerm, component: "employeeList" }));
     }
   }, [status, department, searchTerm, dispatch]);
 
@@ -89,6 +89,7 @@ export default function EmployeeList() {
             pageUrl: previousPageUrl,
             department,
             search: searchTerm,
+            component: "employeeList"
           })
         );
       } else {
@@ -117,6 +118,7 @@ export default function EmployeeList() {
             pageUrl: nextPageUrl,
             department,
             search: searchTerm,
+            component: "employeeList"
           })
         );
       } else {
@@ -142,7 +144,7 @@ export default function EmployeeList() {
   const handleSort = (value: string) => {
     setDepartment(value);
     dispatch(resetEmployees());
-    dispatch(fetchEmployees({ pageUrl: null, department: value, search: searchTerm }));
+    dispatch(fetchEmployees({ pageUrl: null, department: value, search: searchTerm, component: "employeeList" }));
   };
 
   const handleClearFilters = () => {
@@ -152,7 +154,7 @@ export default function EmployeeList() {
       searchInputRef.current.value = "";
     }
     dispatch(resetEmployees());
-    dispatch(fetchEmployees({ pageUrl: null, department: "", search: "" }));
+    dispatch(fetchEmployees({ pageUrl: null, department: "", search: "", component: "employeeList" }));
   };
 
   const isLoading = (status === "loading" || employeeListLoading) && !employeeListError && !departmentListError
@@ -171,7 +173,8 @@ export default function EmployeeList() {
                 onClick={() => dispatch(fetchEmployees({
                   pageUrl: null,
                   department,
-                  search: searchTerm
+                  search: searchTerm,
+                  component: "employeeList"
                 }))}
               >
                 Try Again

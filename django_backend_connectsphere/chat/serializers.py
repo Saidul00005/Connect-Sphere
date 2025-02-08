@@ -32,21 +32,22 @@ class ChatRoomSerializer(serializers.ModelSerializer):
         }
 
     def get_last_message(self, obj):
-        last_message = Message.objects.filter(room=obj).order_by('-timestamp').first()
-        if last_message:
+        if obj.last_message_id:
             return {
-                'id': last_message.id,
-                'content': last_message.content,
-                'timestamp': last_message.timestamp,
-                'sender': UserSerializer(last_message.sender).data
+                'id': obj.last_message_id,
+                'content': "This message was deleted" if obj.last_message_is_deleted else obj.last_message_content,
+                'timestamp': obj.last_message_timestamp,
+                'sender': {
+                    'id': obj.last_message_sender_id,
+                    'first_name': obj.last_message_sender_first_name,
+                    'last_name': obj.last_message_sender_last_name,
+                }
             }
         return None
 
+
     def get_unread_messages_count(self, obj):
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            return Message.objects.filter(room=obj).exclude(read_by=request.user).count()
-        return 0
+        return obj.unread_messages_count
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True) 
@@ -70,3 +71,9 @@ class MessageSerializer(serializers.ModelSerializer):
             'is_delivered': {'read_only': True},
             'is_sent': {'read_only': True},
         }
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        if instance.is_deleted:
+            representation['content'] = "This message was deleted"
+        return representation

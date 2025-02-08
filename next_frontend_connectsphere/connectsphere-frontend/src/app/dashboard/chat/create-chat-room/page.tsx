@@ -1,147 +1,352 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import { useAppDispatch } from "@/app/redux/store"
+import { useState, useRef, useEffect, FormEvent, useCallback } from "react"
+import { useAppDispatch, useAppSelector } from "@/app/redux/store"
 import { createChatRoom } from "@/app/redux/slices/chatRoomSlice"
+import {
+  fetchEmployees,
+  resetEmployees,
+  setCurrentPage
+} from "@/app/redux/slices/employeeListForUserSlice"
+import { fetchDepartments } from "@/app/redux/slices/DepartmentListSliceForUser"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Users, MessageSquarePlus } from "lucide-react"
+import { Users, MessageSquarePlus, X } from "lucide-react"
+import { getFilterKey } from "@/app/dashboard/collegues/types/employeeListTypes"
+import type { Employee } from "@/app/dashboard/collegues/types/employeeListTypes"
+import { useRouter } from "next/navigation"
+import {
+  setType,
+  setName,
+  addParticipant,
+  removeParticipant,
+  resetForm
+} from "@/app/redux/slices/createChatRoomSlice"
+import { useSession } from "next-auth/react";
+
+type ChatType = "GROUP" | "DIRECT"
 
 export default function CreateChatRoom() {
+  const router = useRouter()
+
+  const { data: session, status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      router.push("/");
+    },
+  });
+
   const dispatch = useAppDispatch()
-  const [name, setName] = useState("")
-  const [type, setType] = useState("GROUP")
-  const [participants, setParticipants] = useState("")
-  const [isCreated, setIsCreated] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [department, setDepartment] = useState("")
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const participantIds = participants
-      .split(",")
-      .map((id) => Number.parseInt(id.trim()))
-      .filter((id) => !isNaN(id))
+  const {
+    type,
+    name,
+    selectedParticipants,
+    createdRoomId
+  } = useAppSelector((state) => state.createChatRoomForm)
 
-    await dispatch(
-      createChatRoom({
-        name,
-        type,
-        participants: participantIds,
-      }),
-    )
+  const {
+    pages,
+    currentPage,
+    loading: employeeListLoading,
+  } = useAppSelector((state) => state.employees)
 
-    setIsCreated(true)
+  const {
+    list: departments,
+    loading: departmentListLoading,
+  } = useAppSelector((state) => state.departments)
+
+  const filterKey = getFilterKey(department, searchTerm, "createChatRoom")
+  const currentPageNumber = parseInt(currentPage[filterKey] || "1")
+  const pageData = pages[filterKey]?.[currentPage[filterKey] || "1"]
+  const employees = pageData ? pageData.results : []
+  const nextPageUrl = pageData?.next
+  const previousPageUrl = pageData?.previous
+  const pageSize = 10
+  const totalPages = pageData ? Math.ceil(pageData.count / pageSize) : 1
+
+  useEffect(() => {
+    if (createdRoomId) {
+      router.push(`/dashboard/chat/chat-history?room=${createdRoomId}`)
+      dispatch(resetForm())
+    }
+  }, [createdRoomId, router, dispatch])
+
+  useEffect(() => {
+    if (status === "authenticated" && employees.length === 0) {
+      dispatch(resetEmployees("createChatRoom"))
+      dispatch(fetchEmployees({ pageUrl: null, department, search: searchTerm, component: "createChatRoom" }))
+    }
+  }, [dispatch, department, searchTerm])
+
+  useEffect(() => {
+    if (status === "authenticated" && departments.length === 0) {
+      dispatch(fetchDepartments())
+    }
+  }, [dispatch, departments.length])
+
+  const handleSearch = () => {
+    if (searchInputRef.current) {
+      setSearchTerm(searchInputRef.current.value)
+    }
   }
 
+  const handleDepartmentChange = (value: string) => {
+    setDepartment(value)
+  }
+
+  const handleClearFilters = () => {
+    setDepartment("")
+    setSearchTerm("")
+    if (searchInputRef.current) {
+      searchInputRef.current.value = ""
+    }
+    dispatch(resetEmployees("createChatRoom"))
+    dispatch(fetchEmployees({ pageUrl: null, department: "", search: "", component: "" }))
+  }
+
+  const handleParticipantSelect = (employee: Employee) => {
+    dispatch(addParticipant(employee))
+  }
+
+  const handleParticipantRemove = (employeeId: number) => {
+    dispatch(removeParticipant(employeeId))
+  }
+
+  const handlePreviousPage = useCallback(() => {
+    if (previousPageUrl && !employeeListLoading && !departmentListLoading) {
+      const prevPageNumber = new URL(previousPageUrl, window.location.origin).searchParams.get("page") || "1"
+
+      if (!pages[filterKey]?.[prevPageNumber]) {
+        dispatch(
+          fetchEmployees({
+            pageUrl: previousPageUrl,
+            department,
+            search: searchTerm,
+            component: "createChatRoom"
+          })
+        )
+      } else {
+        dispatch(setCurrentPage({ [filterKey]: prevPageNumber }))
+      }
+    }
+  }, [previousPageUrl, employeeListLoading, departmentListLoading, dispatch, pages, filterKey, department, searchTerm])
+
+  const handleNextPage = useCallback(() => {
+    if (nextPageUrl && !employeeListLoading && !departmentListLoading) {
+      const nextPageNumber = new URL(nextPageUrl, window.location.origin).searchParams.get("page") || "1"
+
+      if (!pages[filterKey]?.[nextPageNumber]) {
+        dispatch(
+          fetchEmployees({
+            pageUrl: nextPageUrl,
+            department,
+            search: searchTerm,
+            component: "createChatRoom"
+          })
+        )
+      } else {
+        dispatch(setCurrentPage({ [filterKey]: nextPageNumber }))
+      }
+    }
+  }, [nextPageUrl, employeeListLoading, departmentListLoading, dispatch, pages, filterKey, department, searchTerm])
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    const participantIds = selectedParticipants.map(p => p.user__id)
+
+    if ((type === "DIRECT" && participantIds.length !== 1) ||
+      (type === "GROUP" && participantIds.length < 2)) {
+      return
+    }
+
+    const directMessageRoomName = type === "DIRECT"
+      ? `${selectedParticipants[0].user__first_name} ${selectedParticipants[0].user__last_name}`
+      : name
+
+    await dispatch(createChatRoom({
+      name: directMessageRoomName,
+      type,
+      participants: participantIds,
+    }))
+  }
+
+
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-background p-4 md:p-8 flex items-center justify-center">
-      <div className="w-full max-w-5xl grid md:grid-cols-2 gap-8">
-        {/* Left side - Information */}
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight">Create Chat Room</h1>
-            <p className="text-muted-foreground mt-2">
-              Create a new chat room and invite participants to join your conversation.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Group Chat
-                </CardTitle>
-                <CardDescription>Create a room for multiple participants to join and collaborate.</CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquarePlus className="h-5 w-5" />
-                  Direct Message
-                </CardTitle>
-                <CardDescription>Start a private conversation with another user.</CardDescription>
-              </CardHeader>
-            </Card>
-          </div>
+    <div className="min-h-[calc(100vh-4rem)] bg-background p-4 md:p-8 grid md:grid-cols-2 gap-8">
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Create Chat Room</h1>
+          <p className="text-muted-foreground mt-2">Select participants for your chat</p>
         </div>
 
-        {/* Right side - Form */}
-        <Card className="border-2">
+        <Card>
           <CardHeader>
-            <CardTitle>Room Details</CardTitle>
-            <CardDescription>Fill in the details below to create your chat room.</CardDescription>
+            <CardTitle>Room Type</CardTitle>
           </CardHeader>
           <CardContent>
-            {!isCreated ? (
-              <form className="space-y-6" onSubmit={handleSubmit}>
-                <div className="space-y-2">
-                  <Label htmlFor="name">Room Name</Label>
-                  <Input
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Enter room name"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="type">Room Type</Label>
-                  <Select value={type} onValueChange={setType}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="GROUP">Group</SelectItem>
-                      <SelectItem value="DIRECT">Direct Message</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="participants">Participant IDs (comma-separated)</Label>
-                  <Input
-                    id="participants"
-                    value={participants}
-                    onChange={(e) => setParticipants(e.target.value)}
-                    placeholder="1, 2, 3"
-                    required
-                  />
-                  <p className="text-sm text-muted-foreground">Enter user IDs separated by commas</p>
-                </div>
-
-                <Button type="submit" className="w-full">
-                  Create Chat Room
-                </Button>
-              </form>
-            ) : (
-              <div className="space-y-6">
-                <div className="rounded-lg bg-primary/10 p-4 text-center">
-                  <p className="text-primary font-medium">Chat room created successfully!</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    You can now start chatting with your participants.
-                  </p>
-                </div>
-                <Button
-                  onClick={() => {
-                    setIsCreated(false)
-                    setName("")
-                    setParticipants("")
-                  }}
-                  variant="outline"
-                  className="w-full"
-                >
-                  Create Another Room
-                </Button>
-              </div>
-            )}
+            <Select value={type} onValueChange={(value: ChatType) => dispatch(setType(value))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="GROUP">Group Chat</SelectItem>
+                <SelectItem value="DIRECT">Direct Message</SelectItem>
+              </SelectContent>
+            </Select>
           </CardContent>
         </Card>
+
+        {type === "GROUP" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Room Name</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Input
+                value={name}
+                onChange={(e) => dispatch(setName(e.target.value))}
+                placeholder="Enter room name"
+                required
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Selected Participants</CardTitle>
+            <CardDescription>
+              {type === "DIRECT" ? "Select 1 participant" : "Select at least 2 participants"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {selectedParticipants.map((participant) => (
+                <div
+                  key={participant.id}
+                  className="flex items-center gap-2 bg-primary/10 text-primary rounded-full px-3 py-1"
+                >
+                  <span>
+                    {participant.user__first_name} {participant.user__last_name}
+                  </span>
+                  <button
+                    onClick={() => handleParticipantRemove(participant.id)}
+                    className="hover:text-destructive"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Search Participants</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <div className="relative flex-grow">
+                <Input
+                  ref={searchInputRef}
+                  placeholder="Search by name"
+                  className="pr-20"
+                />
+                <Button
+                  onClick={handleSearch}
+                  className="absolute right-0 top-0 rounded-l-none"
+                >
+                  Search
+                </Button>
+              </div>
+              <Select value={department} onValueChange={handleDepartmentChange}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept.id} value={dept.name}>
+                      {dept.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button variant="outline" onClick={handleClearFilters}>
+                Clear
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              {employeeListLoading ? (
+                <div className="animate-pulse space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-16 bg-muted rounded" />
+                  ))}
+                </div>
+              ) : (
+                employees.map((employee) => (
+                  <Card
+                    key={employee.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleParticipantSelect(employee)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-medium">
+                            {employee.user__id === Number(session?.user?.id) ? "You" : `${employee.user__first_name} ${employee.user__last_name}`}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {employee.department__name} - {employee.designation}
+                          </p>
+                        </div>
+                        {selectedParticipants.find(p => p.id === employee.id) && (
+                          <div className="text-primary">
+                            <Users className="h-5 w-5" />
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex items-center justify-center gap-4 mt-4">
+          <Button onClick={handlePreviousPage} disabled={!previousPageUrl}>
+            Previous
+          </Button>
+          <span>
+            Page {currentPageNumber} of {totalPages}
+          </span>
+          <Button onClick={handleNextPage} disabled={!nextPageUrl}>
+            Next
+          </Button>
+        </div>
+
+        <Button
+          className="w-full"
+          onClick={handleSubmit}
+          disabled={
+            (type === "DIRECT" && selectedParticipants.length !== 1) ||
+            (type === "GROUP" && selectedParticipants.length < 2) ||
+            (type === "GROUP" && !name.trim())
+          }
+        >
+          Create Chat Room
+        </Button>
       </div>
     </div>
   )

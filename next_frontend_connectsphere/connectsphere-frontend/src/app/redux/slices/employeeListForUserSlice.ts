@@ -24,10 +24,10 @@ export const fetchEmployees = createAsyncThunk<
   { rejectValue: string; state: RootState }
 >(
   "employees/fetch",
-  async ({ pageUrl, department, search }, { getState, rejectWithValue }) => {
+  async ({ pageUrl, department, search, component }, { getState, rejectWithValue }) => {
     try {
       const state = getState().employees;
-      const filterKey = getFilterKey(department, search);
+      const filterKey = getFilterKey(department, search, component);
       const page = pageUrl
         ? new URL(pageUrl, window.location.origin).searchParams.get("page") || "1"
         : "1";
@@ -77,9 +77,27 @@ const employeeListForUserSlice = createSlice({
   name: "employees",
   initialState,
   reducers: {
-    resetEmployees: (state) => {
-      state.pages = {};
-      state.currentPage = {};
+    resetEmployees: (state, action: PayloadAction<string | undefined>) => {
+      if (action.payload) {
+        const component = action.payload;
+        const componentPrefix = `${component}_`;
+        // Delete pages for the component
+        Object.keys(state.pages).forEach(key => {
+          if (key.startsWith(componentPrefix)) {
+            delete state.pages[key];
+          }
+        });
+        // Delete currentPage entries for the component
+        Object.keys(state.currentPage).forEach(key => {
+          if (key.startsWith(componentPrefix)) {
+            delete state.currentPage[key];
+          }
+        });
+      } else {
+        // Existing behavior if no payload (reset all)
+        state.pages = {};
+        state.currentPage = {};
+      }
     },
     setCurrentPage: (state, action: PayloadAction<Record<string, string>>) => {
       state.currentPage = { ...state.currentPage, ...action.payload };

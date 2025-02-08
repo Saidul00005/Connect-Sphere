@@ -20,26 +20,26 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         request = self.request
+        user = request.user
 
         last_message_subquery = Message.objects.filter(
             room=OuterRef('pk') 
-        ).order_by('-timestamp').values('id')[:1] 
-
-        unread_count_subquery = Message.objects.filter(
-            room=OuterRef('pk'), 
-        ).exclude(read_by=request.user).values('room').annotate(
-            count=Count('id')
-        ).values('count')
+        ).order_by('-timestamp')
 
         chatrooms = ChatRoom.objects.annotate(
-            last_message_id=Subquery(last_message_subquery),
-            unread_messages_count=Subquery(unread_count_subquery, output_field=IntegerField())
-        ).filter(participants__id=request.user.id).order_by('-created_at')
-
-        # chatrooms = chatrooms.prefetch_related(
-        #     Prefetch('last_message', queryset=Message.objects.filter(id__in=Subquery(last_message_subquery)))
-        # )
-
+        last_message_id=Subquery(last_message_subquery.values('id')[:1]),
+        last_message_content=Subquery(last_message_subquery.values('content')[:1]),
+        last_message_timestamp=Subquery(last_message_subquery.values('timestamp')[:1]),
+        last_message_is_deleted=Subquery(last_message_subquery.values('is_deleted')[:1]),
+        last_message_sender_id=Subquery(last_message_subquery.values('sender__id')[:1]),
+        last_message_sender_first_name=Subquery(last_message_subquery.values('sender__first_name')[:1]),
+        last_message_sender_last_name=Subquery(last_message_subquery.values('sender__last_name')[:1]),
+        unread_messages_count=Count(
+            'message',
+            filter=Q(message__is_deleted=False) & ~Q(message__read_by=user)
+        )
+        ).filter(is_deleted=False)
+        
         return chatrooms
 
     def list(self, request, *args, **kwargs):
@@ -55,9 +55,9 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             filters &= Q(name__icontains=search_query)
 
         if filters:
-            queryset = queryset.filter(filters).order_by('id')
+            queryset = queryset.filter(filters).order_by('last_modified_at')
         else:
-            queryset = queryset.order_by('id')
+            queryset = queryset.order_by('last_modified_at')
 
 
         paginator = CustomPagination()
