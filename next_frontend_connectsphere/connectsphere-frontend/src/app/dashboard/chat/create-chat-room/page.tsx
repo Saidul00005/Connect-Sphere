@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, FormEvent, useCallback } from "react"
 import { useAppDispatch, useAppSelector } from "@/app/redux/store"
-import { createChatRoom } from "@/app/redux/slices/chatRoomSlice"
+import { createChatRoom } from "@/app/redux/slices/chatRoomsSlice"
 import {
   fetchEmployees,
   resetEmployees,

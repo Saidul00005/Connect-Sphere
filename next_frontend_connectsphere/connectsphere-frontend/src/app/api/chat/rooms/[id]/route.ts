@@ -20,7 +20,6 @@ export async function DELETE(
       {
         headers: {
           'Authorization': `Bearer ${session.user.token}`,
-          'Content-Type': 'application/json',
           'X-Api-Key': process.env.BACKEND_API_KEY || ''
         }
       }

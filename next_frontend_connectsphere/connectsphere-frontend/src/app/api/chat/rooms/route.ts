@@ -59,8 +59,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
 
-    console.log("Request Body:", JSON.stringify(body, null, 2));
-
     const backendUrl = `${process.env.BACKEND_URL}/api/chat/rooms/`;
 
     const response = await axios.post(backendUrl, body, {

@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { createChatRoom } from "@/app/redux/slices/chatRoomSlice"
+import { createChatRoom } from "@/app/redux/slices/chatRoomsSlice"
 import type { Employee } from "@/app/dashboard/collegues/types/employeeListTypes";
 
 interface CreateChatRoomState {

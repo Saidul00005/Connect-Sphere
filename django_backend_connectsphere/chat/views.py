@@ -161,10 +161,11 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 
         chatroom.is_deleted = True
         chatroom.last_deleted_at = timezone.now()
+        chatroom.is_restored = False
         chatroom.save()
 
         return Response({'message': 'Chatroom successfully deleted (soft delete)'},
-                        status=status.HTTP_204_NO_CONTENT)
+                        status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['patch'])
     def restore(self, request, *args, **kwargs):

@@ -32,6 +32,19 @@ class ChatRoomSerializer(serializers.ModelSerializer):
         }
 
     def get_last_message(self, obj):
+
+        last_message_id = getattr(obj, 'last_message_id', None)
+        if not last_message_id:
+            return None  
+
+        last_message_id = getattr(obj, 'last_message_id', None)
+        last_message_content = getattr(obj, 'last_message_content', None)
+        last_message_timestamp = getattr(obj, 'last_message_timestamp', None)
+        last_message_is_deleted = getattr(obj, 'last_message_is_deleted', None)
+        last_message_sender_id = getattr(obj, 'last_message_sender_id', None)
+        last_message_sender_first_name = getattr(obj, 'last_message_sender_first_name', None)
+        last_message_sender_last_name = getattr(obj, 'last_message_sender_last_name', None)
+
         if obj.last_message_id:
             return {
                 'id': obj.last_message_id,
@@ -47,7 +60,7 @@ class ChatRoomSerializer(serializers.ModelSerializer):
 
 
     def get_unread_messages_count(self, obj):
-        return obj.unread_messages_count
+        return getattr(obj, 'unread_messages_count', 0)
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True) 

@@ -1,13 +1,14 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { TypedUseSelectorHook, useSelector, useDispatch } from 'react-redux';
 import profileReducer from '@/app/redux/slices/profileSlice';
-import chatRoomsSliceForUser from '@/app/redux/slices/chatRoomSlice';
+import chatRoomsSliceForUser from '@/app/redux/slices/chatRoomsSlice';
 import userProfileReducer from '@/app/redux/slices/userProfileSlice';
 import employeeListForUser from '@/app/redux/slices/employeeListForUserSlice';
 import employeeProfileSliceForUser from '@/app/redux/slices/employeeProfileSliceForUser';
 import DepartmentListSliceForUser from '@/app/redux/slices/DepartmentListSliceForUser';
 import chatMessagesSliceForUser from '@/app/redux/slices/chatMessagesSlice';
 import createChatRoomFormForUser from '@/app/redux/slices/createChatRoomSlice';
+import singleChatRoomForUser from '@/app/redux/slices/chatRoomSlice';
 
 export const store = configureStore({
   reducer: {
@@ -18,7 +19,8 @@ export const store = configureStore({
     employee: employeeProfileSliceForUser,
     departments: DepartmentListSliceForUser,
     chatMessages: chatMessagesSliceForUser,
-    createChatRoomForm: createChatRoomFormForUser
+    createChatRoomForm: createChatRoomFormForUser,
+    singleChatRoom: singleChatRoomForUser
   },
 });
 
