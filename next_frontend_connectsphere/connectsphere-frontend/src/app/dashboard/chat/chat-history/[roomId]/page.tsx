@@ -67,10 +67,10 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   }
 
   useEffect(() => {
-    if (status === "authenticated" && allMessages.length === 0 && !loading && !error) {
+    if (status === "authenticated" && allMessages.length === 0) {
       dispatch(fetchMessages({ pageUrl: null, roomId }))
     }
-  }, [roomId, allMessages.length, loading, error, dispatch, status])
+  }, [roomId, dispatch, status])
 
   useEffect(() => {
     if (status === "authenticated" && !singleChatRoom) {
@@ -265,205 +265,195 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
               <Loader2 className="animate-spin h-8 w-8 text-muted-foreground" />
             </div>
           ) : error && allMessages.length === 0 ? (
-            <div className="text-center text-red-500 mt-4">
-              {error}
+            <div className="text-center text-red-500 mt-4">{error}</div>
+          ) : allMessages.length === 0 ? (
+            <div className="p-4 text-center text-muted-foreground">
+              No message found.
             </div>
           ) : (
-            <>
-              {error && allMessages.length > 0 && (
-                <div className="text-center text-red-500 mt-2">
-                  {error}
-                </div>
-              )}
-              <div className="space-y-4">
-                {allMessages.map((message) => {
-                  const isCurrentUser =
-                    message.sender.id === Number(session?.user?.id)
-                  return (
+            <div className="space-y-4">
+              {allMessages.map((message) => {
+                const isCurrentUser =
+                  message.sender.id === Number(session?.user?.id)
+                return (
+                  <div
+                    key={message.id}
+                    className={`flex flex-col ${isCurrentUser ? "items-end" : "items-start"
+                      }`}
+                  >
+                    <span className="text-xs text-muted-foreground mb-1 mx-3">
+                      {isCurrentUser
+                        ? "You"
+                        : message.sender.first_name +
+                        " " +
+                        message.sender.last_name}
+                    </span>
                     <div
-                      key={message.id}
-                      className={`flex flex-col ${isCurrentUser ? "items-end" : "items-start"
-                        }`}
+                      className={`group relative max-w-[70%] rounded-2xl px-4 py-2 ${isCurrentUser
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
+                        } ${message.is_deleted ? "opacity-50" : ""}`}
                     >
-                      <span className="text-xs text-muted-foreground mb-1 mx-3">
-                        {isCurrentUser
-                          ? "You"
-                          : message.sender.first_name +
-                          " " +
-                          message.sender.last_name}
-                      </span>
-                      <div
-                        className={`group relative max-w-[70%] rounded-2xl px-4 py-2 ${isCurrentUser
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted"
-                          } ${message.is_deleted ? "opacity-50" : ""}`}
-                      >
-                        <div className="space-y-1">
-                          {message.is_deleted ? (
-                            <p className="italic text-sm">
-                              This message was deleted
-                            </p>
-                          ) : (
-                            <>
-                              <div className="flex items-start justify-between gap-2">
-                                {editingMessageId === message.id ? (
-                                  <form
-                                    onSubmit={(e) => {
-                                      e.preventDefault()
-                                      handleSaveInlineEdit(message.id)
-                                    }}
-                                    className="flex-1"
-                                  >
-                                    <Input
-                                      value={editContent}
-                                      onChange={(e) =>
-                                        setEditContent(e.target.value)
+                      <div className="space-y-1">
+                        {message.is_deleted ? (
+                          <p className="italic text-sm">
+                            This message was deleted
+                          </p>
+                        ) : (
+                          <>
+                            <div className="flex items-start justify-between gap-2">
+                              {editingMessageId === message.id ? (
+                                <form
+                                  onSubmit={(e) => {
+                                    e.preventDefault()
+                                    handleSaveInlineEdit(message.id)
+                                  }}
+                                  className="flex-1"
+                                >
+                                  <Input
+                                    value={editContent}
+                                    onChange={(e) =>
+                                      setEditContent(e.target.value)
+                                    }
+                                    className="mb-2 bg-black dark:bg-white"
+                                    autoFocus
+                                  />
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() =>
+                                        setEditingMessageId(null)
                                       }
-                                      className="mb-2 bg-black dark:bg-white"
-                                      autoFocus
-                                    />
-                                    <div className="flex justify-end gap-2">
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() =>
-                                          setEditingMessageId(null)
-                                        }
-                                      >
-                                        Cancel
-                                      </Button>
-                                      <Button type="submit" size="sm">
-                                        Save
-                                      </Button>
-                                    </div>
-                                  </form>
-                                ) : (
-                                  <p className="text-sm whitespace-pre-wrap break-words">
-                                    {message.content}
-                                  </p>
-                                )}
-                                {isCurrentUser && !message.is_deleted && (
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6 -mr-2"
-                                      >
-                                        <MoreVertical className="h-4 w-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem
-                                        onClick={() =>
-                                          handleEdit(
-                                            message.id,
-                                            message.content,
-                                          )
-                                        }
-                                      >
-                                        Edit Message
-                                      </DropdownMenuItem>
-                                      <AlertDialog
-                                        open={messageToDelete === message.id}
-                                        onOpenChange={(open) =>
-                                          !open && setMessageToDelete(null)
-                                        }
-                                      >
-                                        <AlertDialogTrigger asChild>
-                                          <DropdownMenuItem
-                                            onClick={(e) => {
-                                              e.preventDefault()
-                                              setMessageToDelete(message.id)
-                                            }}
-                                            className="text-destructive"
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button type="submit" size="sm">
+                                      Save
+                                    </Button>
+                                  </div>
+                                </form>
+                              ) : (
+                                <p className="text-sm whitespace-pre-wrap break-words">
+                                  {message.content}
+                                </p>
+                              )}
+                              {isCurrentUser && !message.is_deleted && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 -mr-2"
+                                    >
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        handleEdit(message.id, message.content)
+                                      }
+                                    >
+                                      Edit Message
+                                    </DropdownMenuItem>
+                                    <AlertDialog
+                                      open={messageToDelete === message.id}
+                                      onOpenChange={(open) =>
+                                        !open && setMessageToDelete(null)
+                                      }
+                                    >
+                                      <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem
+                                          onClick={(e) => {
+                                            e.preventDefault()
+                                            setMessageToDelete(message.id)
+                                          }}
+                                          className="text-destructive"
+                                        >
+                                          Delete Message
+                                        </DropdownMenuItem>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>
+                                            Are you sure?
+                                          </AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            This action cannot be undone.
+                                            This will delete your message.
+                                            CEO can restore message.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>
+                                            Cancel
+                                          </AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() =>
+                                              handleDelete(message.id)
+                                            }
+                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                           >
-                                            Delete Message
-                                          </DropdownMenuItem>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>
-                                              Are you sure?
-                                            </AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              This action cannot be undone.
-                                              This will delete your message.
-                                              CEO can restore message.
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>
-                                              Cancel
-                                            </AlertDialogCancel>
-                                            <AlertDialogAction
-                                              onClick={() =>
-                                                handleDelete(message.id)
-                                              }
-                                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                            >
-                                              Delete
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
+                                            Delete
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-1 text-xs opacity-60">
+                              <div className="flex items-center gap-2">
+                                <span>
+                                  {format(
+                                    new Date(message.timestamp),
+                                    "MMM d, yyyy, h:mm a"
+                                  )}
+                                </span>
+                                {!message.is_deleted && (
+                                  <>
+                                    {message.read_by?.length ? (
+                                      <span className="flex items-center gap-1">
+                                        <CheckCheck className="h-3 w-3" /> Read
+                                      </span>
+                                    ) : message.is_delivered ? (
+                                      <span className="flex items-center gap-1">
+                                        <CheckCheck className="h-3 w-3" /> Delivered
+                                      </span>
+                                    ) : message.is_sent ? (
+                                      <span className="flex items-center gap-1">
+                                        <Check className="h-3 w-3" /> Sent
+                                      </span>
+                                    ) : (
+                                      <span>Not sent</span>
+                                    )}
+                                  </>
                                 )}
                               </div>
-                              <div className="flex flex-col gap-1 text-xs opacity-60">
-                                <div className="flex items-center gap-2">
-                                  <span>
+                              {message.is_modified &&
+                                message.last_modified_at && (
+                                  <span className="text-xs italic text-muted-foreground">
+                                    Edited{" "}
                                     {format(
-                                      new Date(message.timestamp),
-                                      "MMM d, yyyy, h:mm a",
+                                      new Date(message.last_modified_at),
+                                      "MMM d, h:mm a"
                                     )}
                                   </span>
-                                  {!message.is_deleted && (
-                                    <>
-                                      {message.read_by?.length ? (
-                                        <span className="flex items-center gap-1">
-                                          <CheckCheck className="h-3 w-3" />{" "}
-                                          Read
-                                        </span>
-                                      ) : message.is_delivered ? (
-                                        <span className="flex items-center gap-1">
-                                          <CheckCheck className="h-3 w-3" />{" "}
-                                          Delivered
-                                        </span>
-                                      ) : message.is_sent ? (
-                                        <span className="flex items-center gap-1">
-                                          <Check className="h-3 w-3" /> Sent
-                                        </span>
-                                      ) : (
-                                        <span>Not sent</span>
-                                      )}
-                                    </>
-                                  )}
-                                </div>
-                                {message.is_modified &&
-                                  message.last_modified_at && (
-                                    <span className="text-xs italic text-muted-foreground">
-                                      Edited{" "}
-                                      {format(
-                                        new Date(message.last_modified_at),
-                                        "MMM d, h:mm a",
-                                      )}
-                                    </span>
-                                  )}
-                              </div>
-                            </>
-                          )}
-                        </div>
+                                )}
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
-                  )
-                })}
-              </div>
-              <div ref={messagesEndRef} />
-            </>
+                  </div>
+                )
+              })}
+            </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
         {/* Scroll to Bottom Button */}
         {hasScrolledUp && (
@@ -482,7 +472,7 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
       <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4">
         <MessageInput roomId={roomId} onMessageSent={scrollToBottom} />
       </div>
-    </div>
+    </div >
   )
 }
 

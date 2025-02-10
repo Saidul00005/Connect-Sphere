@@ -12,17 +12,17 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const page = searchParams.get('page') || '1';
+    const cursor = searchParams.get('cursor');
     const search = searchParams.get('search');
 
-    const queryParams = new URLSearchParams({
-      page,
-      ...(search && { search })
-    }).toString();
+    const baseUrl = `${process.env.BACKEND_URL}/api/chat/rooms/`;
 
-    const backendUrl = `${process.env.BACKEND_URL}/api/chat/rooms/?${queryParams}`;
+    const url = new URL(baseUrl);
 
-    const response = await axios.get(backendUrl, {
+    if (cursor) url.searchParams.set('cursor', cursor);
+    if (search) url.searchParams.set('search', search);
+
+    const response = await axios.get(url.toString(), {
       headers: {
         'Authorization': `Bearer ${session.user.token}`,
         'X-Api-Key': process.env.BACKEND_API_KEY || ''
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     const response = await axios.post(backendUrl, body, {
       headers: {
-        'Authorization': `Bearer ${session.user.token}`,
+        'Authorization': `Bearer ${session.user.token} `,
         'X-Api-Key': process.env.BACKEND_API_KEY || '',
         'Content-Type': 'application/json'
       }

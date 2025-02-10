@@ -4,71 +4,38 @@ import {
   ChatRoomState,
   FetchChatRoomsParams,
   ChatRoomResponse,
-  PageData,
-  getFilterKey,
   ChatRoom
 } from "@/app/dashboard/chat/chat-history/types/chatHistoryTypes";
 import { RootState } from "@/app/redux/store";
 
-const MAX_PAGES = 10;
-
 const initialState: ChatRoomState = {
-  pages: {},
-  currentPage: {},
+  allRooms: [],
+  nextPage: null,
   loading: false,
   error: null,
 };
 
 export const fetchChatRooms = createAsyncThunk<
-  { filterKey: string; page: string; data: PageData },
+  ChatRoomResponse,
   FetchChatRoomsParams,
   { rejectValue: string; state: RootState }
 >(
   "chatRooms/fetch",
-  async ({ pageUrl, search }, { getState, rejectWithValue }) => {
+  async ({ pageUrl, search }, { rejectWithValue }) => {
     try {
-      const state = getState().chatRooms;
-      const filterKey = getFilterKey(search);
-      const page = pageUrl
-        ? new URL(pageUrl, window.location.origin).searchParams.get("page") || "1"
-        : "1";
+      let url = pageUrl || '/api/chat/rooms/';
 
-      // Check if we already have this page in cache
-      if (state.pages[filterKey]?.[page]) {
-        return {
-          filterKey,
-          page,
-          data: state.pages[filterKey][page],
-        };
+      if (!pageUrl) {
+        const params = new URLSearchParams();
+        if (search) params.set('search', search);
+        url = `/api/chat/rooms/?${params.toString()}`;
       }
 
-      const params = new URLSearchParams();
-      params.set("page", page);
-      if (search) params.set("search", search);
-
-      const response = await axios.get<ChatRoomResponse>(
-        `/api/chat/rooms/?${params.toString()}`
-      );
-
-      const data: PageData = {
-        results: response.data.results,
-        next: response.data.next,
-        previous: response.data.previous,
-        count: response.data.count,
-      };
-
-      return {
-        filterKey,
-        page: params.get("page") || "1",
-        data,
-      };
+      const response = await axios.get<ChatRoomResponse>(url);
+      return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        const message =
-          typeof error.response?.data?.error === "string"
-            ? error.response?.data?.error
-            : error.message || "Failed to fetch chat rooms";
-        return rejectWithValue(message);
+        return rejectWithValue(error.response?.data?.error || "Failed to fetch chat rooms");
       }
       return rejectWithValue("Failed to fetch chat rooms");
     }
@@ -121,11 +88,8 @@ const chatRoomsSliceForUser = createSlice({
   initialState,
   reducers: {
     resetChatRooms: (state) => {
-      state.pages = {};
-      state.currentPage = {};
-    },
-    setCurrentPage: (state, action: PayloadAction<Record<string, string>>) => {
-      state.currentPage = { ...state.currentPage, ...action.payload };
+      state.allRooms = [];
+      state.nextPage = null;
     },
   },
   extraReducers: (builder) => {
@@ -136,39 +100,18 @@ const chatRoomsSliceForUser = createSlice({
       })
       .addCase(fetchChatRooms.fulfilled, (state, action) => {
         state.loading = false;
-        const { filterKey, page, data } = action.payload;
+        const { results, next } = action.payload;
 
-        if (!state.pages[filterKey]) {
-          state.pages[filterKey] = {};
-          state.currentPage[filterKey] = "1";
+        if (action.meta.arg.pageUrl) {
+          state.allRooms = [...state.allRooms, ...results];
+        } else {
+          state.allRooms = results;
         }
-
-        state.pages[filterKey][page] = data;
-        state.currentPage[filterKey] = page;
-
-        // Manage cache size
-        const cachedPageKeys = Object.keys(state.pages[filterKey])
-          .map(Number)
-          .sort((a, b) => a - b);
-
-        const currentPageNumber = Number(state.currentPage[filterKey]);
-        const pagesToEvict = cachedPageKeys.filter(
-          (pageNum) => pageNum !== currentPageNumber
-        );
-
-        while (
-          Object.keys(state.pages[filterKey]).length > MAX_PAGES &&
-          pagesToEvict.length > 0
-        ) {
-          const oldestPage = pagesToEvict.shift()?.toString();
-          if (oldestPage) {
-            delete state.pages[filterKey][oldestPage];
-          }
-        }
+        state.nextPage = next;
       })
       .addCase(fetchChatRooms.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) || "An error occurred";
+        state.error = action.payload || "Failed to fetch rooms";
       })
       .addCase(createChatRoom.pending, (state) => {
         state.loading = true;
@@ -176,20 +119,7 @@ const chatRoomsSliceForUser = createSlice({
       })
       .addCase(createChatRoom.fulfilled, (state, action) => {
         state.loading = false;
-        const newChatRoom = action.payload;
-
-        const filterKey = getFilterKey("");
-        if (!state.pages[filterKey]) {
-          state.pages[filterKey] = {};
-        }
-
-        const currentPage = state.currentPage[filterKey] || "1";
-        if (!state.pages[filterKey][currentPage]) {
-          state.pages[filterKey][currentPage] = { results: [], next: null, previous: null, count: 0 };
-        }
-
-        state.pages[filterKey][currentPage].results.push(newChatRoom);
-        state.pages[filterKey][currentPage].count += 1;
+        state.allRooms.unshift(action.payload);
       })
       .addCase(createChatRoom.rejected, (state, action) => {
         state.loading = false;
@@ -200,28 +130,10 @@ const chatRoomsSliceForUser = createSlice({
         state.error = null;
       })
       .addCase(deleteChatRoom.fulfilled, (state, action) => {
-        state.loading = false;
-        const deletedRoomId = action.payload;
-
-        Object.keys(state.pages).forEach(filterKey => {
-          Object.keys(state.pages[filterKey]).forEach(pageKey => {
-            const page = state.pages[filterKey][pageKey];
-
-            const initialLength = page.results.length;
-            page.results = page.results.filter(room => room.id !== deletedRoomId);
-
-            if (page.results.length < initialLength) {
-              page.count = Math.max(0, (page.count || 0) - 1);
-            }
-          });
-        });
-      })
-      .addCase(deleteChatRoom.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload || "Failed to delete chat room";
+        state.allRooms = state.allRooms.filter(room => room.id !== action.payload);
       });
   },
 });
 
-export const { resetChatRooms, setCurrentPage } = chatRoomsSliceForUser.actions;
+export const { resetChatRooms } = chatRoomsSliceForUser.actions;
 export default chatRoomsSliceForUser.reducer;

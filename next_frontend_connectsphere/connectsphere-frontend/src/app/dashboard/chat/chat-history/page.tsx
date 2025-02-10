@@ -5,10 +5,8 @@ import { useAppDispatch, useAppSelector } from "@/app/redux/store"
 import {
   fetchChatRooms,
   resetChatRooms,
-  setCurrentPage,
   deleteChatRoom
 } from "@/app/redux/slices/chatRoomsSlice"
-import { getFilterKey } from "@/app/dashboard/chat/chat-history/types/chatHistoryTypes"
 import { Search, X, Trash2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -37,8 +35,8 @@ export default function ChatHistory() {
   })
   const dispatch = useAppDispatch()
   const {
-    pages,
-    currentPage,
+    allRooms,
+    nextPage,
     loading: ChatroomListLoading,
     error: ChatroomListError
   } = useAppSelector((state) => state.chatRooms)
@@ -46,58 +44,18 @@ export default function ChatHistory() {
   const [searchQuery, setSearchQuery] = useState("")
   const [deleteRoomId, setDeleteRoomId] = useState<number | null>(null)
 
-  const filterKey = getFilterKey(searchQuery)
-  const currentPageNumber = parseInt(currentPage[filterKey] || "1")
-  const pageData = pages[filterKey]?.[currentPage[filterKey] || "1"]
-  const rooms = pageData ? pageData.results : []
-  const nextPageUrl = pageData?.next
-  const previousPageUrl = pageData?.previous
-  const totalPages = pageData ? Math.ceil(pageData.count / 10) : 1
-
   useEffect(() => {
-    if (status === "authenticated" && rooms.length === 0) {
+    if (status === "authenticated" && allRooms.length === 0) {
       dispatch(resetChatRooms())
-      dispatch(fetchChatRooms({ pageUrl: null, search: searchQuery }))
+      dispatch(fetchChatRooms({ search: searchQuery }))
     }
   }, [status, searchQuery, dispatch])
 
-  const handleNextPage = useCallback(() => {
-    if (nextPageUrl && !ChatroomListLoading) {
-      const nextPageNumber =
-        new URL(nextPageUrl, window.location.origin).searchParams.get("page") ||
-        "1"
-      if (!pages[filterKey]?.[nextPageNumber]) {
-        dispatch(
-          fetchChatRooms({
-            pageUrl: nextPageUrl,
-            search: searchQuery,
-          })
-        )
-      } else {
-        dispatch(setCurrentPage({ [filterKey]: nextPageNumber }))
-      }
+  const handleLoadMore = () => {
+    if (nextPage && !ChatroomListLoading) {
+      dispatch(fetchChatRooms({ pageUrl: nextPage }));
     }
-  }, [nextPageUrl, ChatroomListLoading, dispatch, pages, searchQuery, filterKey])
-
-  const handlePreviousPage = useCallback(() => {
-    if (previousPageUrl && !ChatroomListLoading) {
-      const prevPageNumber =
-        new URL(previousPageUrl, window.location.origin).searchParams.get(
-          "page"
-        ) || "1"
-
-      if (!pages[filterKey]?.[prevPageNumber]) {
-        dispatch(
-          fetchChatRooms({
-            pageUrl: previousPageUrl,
-            search: searchQuery,
-          })
-        )
-      } else {
-        dispatch(setCurrentPage({ [filterKey]: prevPageNumber }))
-      }
-    }
-  }, [previousPageUrl, ChatroomListLoading, dispatch, pages, searchQuery, filterKey])
+  };
 
   const handleSearchClick = () => {
     if (searchInputRef.current) {
@@ -173,12 +131,12 @@ export default function ChatHistory() {
                   Search results for "{searchQuery}"
                 </div>
               )}
-              {rooms.length === 0 ? (
+              {allRooms.length === 0 ? (
                 <div className="p-4 text-center text-muted-foreground">
                   No chat rooms found.
                 </div>
               ) : (
-                rooms.map((room) => (
+                allRooms.map((room) => (
                   <div
                     key={room.id}
                     onClick={() => handleRoomSelect(room.id)}
@@ -224,25 +182,15 @@ export default function ChatHistory() {
           )}
         </ScrollArea>
 
-        <div className="flex items-center justify-center gap-4 p-4 border-t">
+        {nextPage && (
           <Button
-            size="sm"
-            onClick={handlePreviousPage}
-            disabled={!previousPageUrl || ChatroomListLoading}
+            onClick={handleLoadMore}
+            disabled={ChatroomListLoading}
+            className="mt-4"
           >
-            Previous
+            {ChatroomListLoading ? "Loading..." : "Load More"}
           </Button>
-          <span className="text-sm text-muted-foreground">
-            Page {currentPageNumber} of {totalPages}
-          </span>
-          <Button
-            size="sm"
-            onClick={handleNextPage}
-            disabled={!nextPageUrl || ChatroomListLoading}
-          >
-            Next
-          </Button>
-        </div>
+        )}
       </div>
 
       <AlertDialog open={deleteRoomId !== null} onOpenChange={() => setDeleteRoomId(null)}>

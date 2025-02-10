@@ -59,7 +59,7 @@ class CursorMessagePagination(CursorPagination):
 
 
 class CursorChatroomPagination(CursorPagination):
-    page_size = 10          
+    page_size = 10     
     ordering = 'last_modified_at','id'   
 
     # Optionally, you can allow the client to adjust the page size:

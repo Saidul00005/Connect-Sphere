@@ -31,28 +31,16 @@ export interface ChatRoomResponse {
   results: ChatRoom[];
   next: string | null;
   previous: string | null;
-  count: number;
-}
-
-export interface PageData {
-  results: ChatRoom[];
-  next: string | null;
-  previous: string | null;
-  count: number;
 }
 
 export interface ChatRoomState {
-  pages: { [key: string]: { [page: string]: PageData } };
-  currentPage: { [key: string]: string };
+  allRooms: ChatRoom[];
+  nextPage: string | null;
   loading: boolean;
   error: string | null;
 }
 
 export interface FetchChatRoomsParams {
-  pageUrl: string | null;
-  search: string;
+  pageUrl?: string | null;
+  search?: string;
 }
-
-export const getFilterKey = (search: string): string => {
-  return `search=${search || ""}`;
-};
