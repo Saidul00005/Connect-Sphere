@@ -11,7 +11,12 @@ interface MessageFormData {
   message: string
 }
 
-const MessageInput = ({ roomId }: { roomId: string }) => {
+interface MessageInputProps {
+  roomId: string
+  onMessageSent: () => void
+}
+
+const MessageInput = ({ roomId, onMessageSent }: MessageInputProps) => {
   const form = useForm<MessageFormData>({
     defaultValues: { message: "" },
   });
@@ -23,6 +28,7 @@ const MessageInput = ({ roomId }: { roomId: string }) => {
       try {
         await dispatch(sendMessage({ content: data.message, roomId })).unwrap();
         form.reset();
+        onMessageSent()
       } catch (error) {
         console.error("Failed to send message:", error);
         toast({

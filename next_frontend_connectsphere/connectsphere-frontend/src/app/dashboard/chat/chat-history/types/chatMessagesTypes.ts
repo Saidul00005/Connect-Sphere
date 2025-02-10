@@ -24,20 +24,14 @@ export interface MessageResponse {
   previous: string | null;
 }
 
-export interface PageData {
-  results: Message[];
-  next: string | null;
-  previous: string | null;
-}
-
 export interface ChatMessageState {
-  pages: { [roomId: string]: { [cursor: string]: PageData } };
-  currentPage: { [roomId: string]: string };
-  loading: boolean;
-  error: string | null;
+  allMessages: Message[]
+  nextCursor: string | null
+  loading: boolean
+  error: string | null
 }
 
 export interface FetchMessageParams {
-  pageUrl: string | null;
-  roomId: string;
+  pageUrl: string | null
+  roomId: string
 }

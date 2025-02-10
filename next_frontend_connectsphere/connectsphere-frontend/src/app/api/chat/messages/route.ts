@@ -30,7 +30,12 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    return NextResponse.json(response.data)
+    const data = response.data;
+    if (data.results && Array.isArray(data.results)) {
+      data.results = data.results.slice().reverse();
+    }
+
+    return NextResponse.json(data)
   } catch (error: any) {
     return NextResponse.json(
       { error: error.response?.data?.error || error.message },

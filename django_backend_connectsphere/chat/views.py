@@ -5,7 +5,7 @@ from .models import ChatRoom, Message
 from .serializers import ChatRoomSerializer, MessageSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_api_key.permissions import HasAPIKey
-from .pagination import CustomPagination, CursorPagination
+from .pagination import CursorMessagePagination,CursorChatroomPagination
 from rest_framework.throttling import UserRateThrottle
 from django.utils import timezone
 from django.db.models import OuterRef,Count,Subquery,Prefetch,IntegerField,Q
@@ -14,7 +14,7 @@ from django.core.exceptions import ValidationError
 class ChatRoomViewSet(viewsets.ModelViewSet):
     queryset = ChatRoom.objects.all()
     serializer_class = ChatRoomSerializer
-    pagination_class = CustomPagination
+    pagination_class = CursorChatroomPagination
     permission_classes = [HasAPIKey,IsAuthenticated]
     throttle_classes = [UserRateThrottle]
 
@@ -55,12 +55,12 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             filters &= Q(name__icontains=search_query)
 
         if filters:
-            queryset = queryset.filter(filters).order_by('last_modified_at')
+            queryset = queryset.filter(filters).order_by('last_modified_at','id')
         else:
-            queryset = queryset.order_by('last_modified_at')
+            queryset = queryset.order_by('last_modified_at','id')
 
 
-        paginator = CustomPagination()
+        paginator = CursorChatroomPagination()
         paginated_queryset = paginator.paginate_queryset(queryset, request)
 
         if paginated_queryset is not None:
@@ -187,7 +187,7 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 class MessageViewSet(viewsets.ModelViewSet):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
-    pagination_class = CursorPagination
+    pagination_class = CursorMessagePagination
     permission_classes = [HasAPIKey,IsAuthenticated]
     throttle_classes = [UserRateThrottle]
     
@@ -206,7 +206,7 @@ class MessageViewSet(viewsets.ModelViewSet):
         # if user.role.name != 'CEO':
         #     messages = messages.filter(is_deleted=False)
 
-        return messages.order_by('timestamp')
+        return messages.order_by('-timestamp')
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
