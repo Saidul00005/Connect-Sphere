@@ -5,7 +5,7 @@ from .models import ChatRoom, Message
 from .serializers import ChatRoomSerializer, MessageSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_api_key.permissions import HasAPIKey
-from .pagination import CustomPagination
+from .pagination import CustomPagination, CursorPagination
 from rest_framework.throttling import UserRateThrottle
 from django.utils import timezone
 from django.db.models import OuterRef,Count,Subquery,Prefetch,IntegerField,Q
@@ -187,7 +187,7 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 class MessageViewSet(viewsets.ModelViewSet):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
-    pagination_class = CustomPagination
+    pagination_class = CursorPagination
     permission_classes = [HasAPIKey,IsAuthenticated]
     throttle_classes = [UserRateThrottle]
     
@@ -210,14 +210,14 @@ class MessageViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
-        paginator = CustomPagination()
-        paginated_queryset = paginator.paginate_queryset(queryset, request)
+        page = self.paginate_queryset(queryset)
         
-        if paginated_queryset is not None:
-            serializer = self.get_serializer(paginated_queryset, many=True)
-            return paginator.get_paginated_response(serializer.data)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
 
-        return Response({"error": "Unable to paginate messages."}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
     def perform_create(self, serializer):
         room_id = self.request.data.get('room')

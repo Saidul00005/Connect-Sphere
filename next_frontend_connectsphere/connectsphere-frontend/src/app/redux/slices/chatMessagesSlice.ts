@@ -18,7 +18,7 @@ const initialState: ChatMessageState = {
 };
 
 export const fetchMessages = createAsyncThunk<
-  { roomId: string; page: string; data: PageData },
+  { roomId: string; cursor: string; data: PageData },
   FetchMessageParams,
   { rejectValue: string; state: RootState }
 >(
@@ -27,36 +27,37 @@ export const fetchMessages = createAsyncThunk<
     try {
       const state = getState().chatMessages;
       const filterKey = roomId;
-      const page = pageUrl
-        ? new URL(pageUrl, window.location.origin).searchParams.get("page") || "1"
-        : "1";
 
-      if (state.pages[filterKey]?.[page]) {
+      let cursor = 'initial';
+      if (pageUrl) {
+        const url = new URL(pageUrl, window.location.origin);
+        cursor = url.searchParams.get('cursor') || 'initial';
+      }
+
+      if (state.pages[filterKey]?.[cursor]) {
         return {
           roomId: filterKey,
-          page,
-          data: state.pages[filterKey][page],
+          cursor,
+          data: state.pages[filterKey][cursor],
         };
       }
 
-      const params = new URLSearchParams();
-      params.set("page", page);
-      params.set("room", roomId);
+      let url = pageUrl;
+      if (!url) {
+        url = `/api/chat/messages/?room_id=${roomId}`;
+      }
 
-      const response = await axios.get<MessageResponse>(
-        `/api/chat/messages/?${params.toString()}`
-      );
+      const response = await axios.get<MessageResponse>(url);
 
       const data: PageData = {
         results: response.data.results,
         next: response.data.next,
         previous: response.data.previous,
-        count: response.data.count,
       };
 
       return {
         roomId: filterKey,
-        page: params.get("page") || "1",
+        cursor,
         data,
       };
     } catch (error) {
@@ -126,7 +127,7 @@ export const deleteMessage = createAsyncThunk<
   }
 });
 
-const chatMessagesSliceForUser = createSlice({
+const chatMessagesSlice = createSlice({
   name: "chatMessages",
   initialState,
   reducers: {
@@ -146,30 +147,24 @@ const chatMessagesSliceForUser = createSlice({
       })
       .addCase(fetchMessages.fulfilled, (state, action) => {
         state.loading = false;
-        const { roomId, page, data } = action.payload;
+        const { roomId, cursor, data } = action.payload;
 
         if (!state.pages[roomId]) {
           state.pages[roomId] = {};
-          state.currentPage[roomId] = "1";
+          state.currentPage[roomId] = "initial";
         }
 
-        state.pages[roomId][page] = data;
-        state.currentPage[roomId] = page;
+        state.pages[roomId][cursor] = data;
+        state.currentPage[roomId] = cursor;
 
-        const cachedPageKeys = Object.keys(state.pages[roomId])
-          .map(Number)
-          .sort((a, b) => a - b);
-
-        const currentPageNumber = Number(state.currentPage[roomId]);
-        const pagesToEvict = cachedPageKeys.filter((pageNum) => pageNum !== currentPageNumber);
-
-        while (
-          Object.keys(state.pages[roomId]).length > MAX_PAGES &&
-          pagesToEvict.length > 0
-        ) {
-          const oldestPage = pagesToEvict.shift()?.toString();
-          if (oldestPage) {
-            delete state.pages[roomId][oldestPage];
+        // Manage page cache
+        const cachedCursors = Object.keys(state.pages[roomId]);
+        while (cachedCursors.length > MAX_PAGES) {
+          // Remove the oldest cursor that isn't the current one
+          const cursorsToEvict = cachedCursors.filter(c => c !== cursor);
+          if (cursorsToEvict.length > 0) {
+            delete state.pages[roomId][cursorsToEvict[0]];
+            cachedCursors.splice(cachedCursors.indexOf(cursorsToEvict[0]), 1);
           }
         }
       })
@@ -179,10 +174,10 @@ const chatMessagesSliceForUser = createSlice({
       })
       .addCase(sendMessage.fulfilled, (state, action) => {
         const roomId = action.meta.arg.roomId;
-        const currentPageNumber = state.currentPage[roomId];
+        const currentCursor = state.currentPage[roomId];
 
-        if (state.pages[roomId]?.[currentPageNumber]) {
-          state.pages[roomId][currentPageNumber].results.push({
+        if (state.pages[roomId]?.[currentCursor]) {
+          state.pages[roomId][currentCursor].results.push({
             ...action.payload,
             is_sent: true,
             is_delivered: false,
@@ -218,5 +213,5 @@ const chatMessagesSliceForUser = createSlice({
   },
 });
 
-export const { resetMessages, setCurrentPage } = chatMessagesSliceForUser.actions;
-export default chatMessagesSliceForUser.reducer;
+export const { resetMessages, setCurrentPage } = chatMessagesSlice.actions;
+export default chatMessagesSlice.reducer;

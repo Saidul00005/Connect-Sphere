@@ -10,16 +10,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const roomId = req.nextUrl.searchParams.get('room') || req.nextUrl.searchParams.get('room_id')
-    if (!roomId) {
-      return NextResponse.json({ error: "Missing room identifier" }, { status: 400 })
-    }
+    const cursor = req.nextUrl.searchParams.get('cursor')
+    let url: string
 
-    const page = req.nextUrl.searchParams.get('page')
-
-    let url = `${process.env.BACKEND_URL}/api/chat/messages/?room_id=${roomId}`
-    if (page) {
-      url += `&page=${page}`
+    if (cursor) {
+      url = `${process.env.BACKEND_URL}/api/chat/messages/?cursor=${cursor}`
+    } else {
+      const roomId = req.nextUrl.searchParams.get('room_id')
+      if (!roomId) {
+        return NextResponse.json({ error: "Missing room identifier" }, { status: 400 })
+      }
+      url = `${process.env.BACKEND_URL}/api/chat/messages/?room_id=${roomId}`
     }
 
     const response = await axios.get(url, {
