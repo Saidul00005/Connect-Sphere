@@ -7,7 +7,7 @@ import {
   resetChatRooms,
   deleteChatRoom
 } from "@/app/redux/slices/chatRoomsSlice"
-import { Search, X, Trash2 } from "lucide-react"
+import { Search, X, Trash2, UserPlus, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -24,6 +24,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { AddParticipants } from "@/app/dashboard/chat/chat-history/components/AddParticipants"
 
 export default function ChatHistory() {
   const router = useRouter()
@@ -43,6 +45,8 @@ export default function ChatHistory() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [deleteRoomId, setDeleteRoomId] = useState<number | null>(null)
+  const [showAddParticipants, setShowAddParticipants] = useState(false)
+  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
 
   useEffect(() => {
     if (status === "authenticated" && allRooms.length === 0) {
@@ -93,12 +97,7 @@ export default function ChatHistory() {
       <h1 className="text-2xl font-bold mb-6">Chat Rooms</h1>
 
       <div className="relative flex items-center mb-6">
-        <Input
-          ref={searchInputRef}
-          type="text"
-          placeholder="Search chat room name"
-          className="pr-20"
-        />
+        <Input ref={searchInputRef} type="text" placeholder="Search chat room name" className="pr-20" />
         <div className="absolute right-2 flex gap-2">
           <Button variant="ghost" size="icon" onClick={handleSearchClick}>
             <Search className="h-4 w-4" />
@@ -111,7 +110,7 @@ export default function ChatHistory() {
 
       <div className="bg-card rounded-lg shadow-sm">
         <ScrollArea className="h-[calc(100vh-250px)]">
-          {ChatroomListLoading ? (
+          {ChatroomListLoading && allRooms.length === 0 ? (
             <div className="space-y-4 p-4">
               {[...Array(10)].map((_, index) => (
                 <div key={index} className="animate-pulse space-y-2">
@@ -132,9 +131,7 @@ export default function ChatHistory() {
                 </div>
               )}
               {allRooms.length === 0 ? (
-                <div className="p-4 text-center text-muted-foreground">
-                  No chat rooms found.
-                </div>
+                <div className="p-4 text-center text-muted-foreground">No chat rooms found.</div>
               ) : (
                 allRooms.map((room) => (
                   <div
@@ -165,14 +162,43 @@ export default function ChatHistory() {
                         <div className="text-xs text-muted-foreground">
                           {room.created_at && format(new Date(room.created_at), "MMM dd, yyyy")}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-muted-foreground hover:text-destructive"
-                          onClick={(e) => handleDeleteClick(e, room.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          {Number(session?.user?.id) === room.created_by.id && (
+                            <>
+                              {room.type === "GROUP" && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-muted-foreground hover:text-primary"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setSelectedRoomId(room.id);
+                                          setShowAddParticipants(true)
+                                        }}
+                                      >
+                                        <UserPlus className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Add Participants</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:text-destructive"
+                                onClick={(e) => handleDeleteClick(e, room.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -183,13 +209,20 @@ export default function ChatHistory() {
         </ScrollArea>
 
         {nextPage && (
-          <Button
-            onClick={handleLoadMore}
-            disabled={ChatroomListLoading}
-            className="mt-4"
-          >
-            {ChatroomListLoading ? "Loading..." : "Load More"}
-          </Button>
+          <div className="flex justify-center p-4">
+            <Button
+              onClick={handleLoadMore}
+              disabled={ChatroomListLoading}
+              variant="secondary"
+              className="w-32"
+            >
+              {ChatroomListLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Load More"
+              )}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -212,6 +245,15 @@ export default function ChatHistory() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {showAddParticipants && selectedRoomId && (
+        <AddParticipants
+          roomId={selectedRoomId}
+          onBack={() => setShowAddParticipants(false)}
+          existingParticipants={
+            allRooms.find(room => room.id === selectedRoomId)?.participants || []
+          }
+        />
+      )}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.response import Response
+# from rest_framework.response import Response
 from rest_framework.pagination import CursorPagination
 from urllib.parse import urlparse
 
@@ -29,59 +29,29 @@ from urllib.parse import urlparse
 #             'results': data
 #         })
 
-class CursorMessagePagination(CursorPagination):
-    page_size = 10          
-    ordering = '-timestamp'    
-
-    # Optionally, you can allow the client to adjust the page size:
-    # page_size_query_param = 'page_size'
-    # max_page_size = 100
+class BaseCursorPagination(CursorPagination):
+    page_size = 10  # Default page size for all inheriting classes
+    
+    def _make_relative_url(self, link):
+        if not link:
+            return None
+        parsed = urlparse(link)
+        relative_url = parsed.path
+        if parsed.query:
+            relative_url += f'?{parsed.query}'
+        return relative_url
 
     def get_next_link(self):
-        next_link = super().get_next_link()
-        if not next_link:
-            return None
-        parsed = urlparse(next_link)
-        relative_url = parsed.path
-        if parsed.query:
-            relative_url += f'?{parsed.query}'
-        return relative_url
+        return self._make_relative_url(super().get_next_link())
 
     def get_previous_link(self):
-        previous_link = super().get_previous_link()
-        if not previous_link:
-            return None
-        parsed = urlparse(previous_link)
-        relative_url = parsed.path
-        if parsed.query:
-            relative_url += f'?{parsed.query}'
-        return relative_url
+        return self._make_relative_url(super().get_previous_link())
 
 
-class CursorChatroomPagination(CursorPagination):
-    page_size = 10     
-    ordering = 'last_modified_at','id'   
+class CursorMessagePagination(BaseCursorPagination):
+    ordering = '-timestamp' 
 
-    # Optionally, you can allow the client to adjust the page size:
-    # page_size_query_param = 'page_size'
-    # max_page_size = 100
 
-    def get_next_link(self):
-        next_link = super().get_next_link()
-        if not next_link:
-            return None
-        parsed = urlparse(next_link)
-        relative_url = parsed.path
-        if parsed.query:
-            relative_url += f'?{parsed.query}'
-        return relative_url
-
-    def get_previous_link(self):
-        previous_link = super().get_previous_link()
-        if not previous_link:
-            return None
-        parsed = urlparse(previous_link)
-        relative_url = parsed.path
-        if parsed.query:
-            relative_url += f'?{parsed.query}'
-        return relative_url
+class CursorChatroomPagination(BaseCursorPagination):
+    ordering = ('last_modified_at', 'id')  
+    # page_size = 6  # Uncomment to override default page size for this class

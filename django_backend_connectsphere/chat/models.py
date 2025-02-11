@@ -31,7 +31,7 @@ class ChatRoom(models.Model):
         return f"{self.name} ({self.type})" if self.name else f"ChatRoom {self.id} ({self.type})"
 
 class Message(models.Model):
-    room = models.ForeignKey(ChatRoom,related_name="message", on_delete=models.CASCADE)
+    room = models.ForeignKey(ChatRoom,related_name="message", on_delete=models.CASCADE,db_index=True)
     sender = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE

@@ -54,6 +54,8 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const initialFetch = useRef(false)
+  const initialRoomFetch = useRef(false)
 
   useEffect(() => {
     return () => {
@@ -67,13 +69,15 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   }
 
   useEffect(() => {
-    if (status === "authenticated" && allMessages.length === 0) {
+    if (status === "authenticated" && !initialFetch.current) {
+      initialFetch.current = true
       dispatch(fetchMessages({ pageUrl: null, roomId }))
     }
   }, [roomId, dispatch, status])
 
   useEffect(() => {
-    if (status === "authenticated" && !singleChatRoom) {
+    if (status === "authenticated" && !singleChatRoom && !initialRoomFetch.current) {
+      initialRoomFetch.current = true
       dispatch(fetchSingleChatRoom(Number(roomId)))
     }
   }, [roomId, singleChatRoom, dispatch, status])

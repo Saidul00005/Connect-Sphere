@@ -16,7 +16,7 @@ urlpatterns = [
     path('rooms/<int:pk>/update/', ChatRoomViewSet.as_view({'patch': 'update'}), name='update_chat_room_information_for_chatroom_admin'),
     path('rooms/<int:pk>/delete/', ChatRoomViewSet.as_view({'delete': 'destroy'}), name='soft_delete_chat_room_for_chatroom_admin'),
 
-    path('rooms/add_participant/', ChatRoomViewSet.as_view({'post': 'add_participant'}), name='add_participant_in_chat_room_for_chat_room_admin'),
+    path('rooms/add_participants/', ChatRoomViewSet.as_view({'post': 'add_participants'}), name='add_participants_in_chat_room_for_chat_room_admin'),
     path('rooms/<int:pk>/restore/', ChatRoomViewSet.as_view({'patch': 'restore'}), name='restore_chatroom_for_CEO'),
 
 

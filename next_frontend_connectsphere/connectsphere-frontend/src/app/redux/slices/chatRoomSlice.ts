@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
-import type { ChatRoom } from '@/app/dashboard/chat/chat-history/types/chatHistoryTypes';
+import type { ChatRoom, User } from '@/app/dashboard/chat/chat-history/types/chatHistoryTypes';
 
 interface SingleChatRoomState {
   rooms: Record<number, ChatRoom>;
@@ -42,6 +42,39 @@ export const fetchSingleChatRoom = createAsyncThunk(
   }
 );
 
+export const addParticipants = createAsyncThunk(
+  'chatRoom/addParticipants',
+  async ({
+    roomId,
+    participants
+  }: {
+    roomId: number;
+    participants: User[]
+  }, { rejectWithValue, getState }) => {
+    try {
+      const state = getState() as { singleChatRoom: SingleChatRoomState };
+      const existingRoom = state.singleChatRoom.rooms[roomId];
+
+      if (existingRoom) {
+        return { roomId, participants, temporary: true };
+      }
+
+      const response = await axios.post('/api/chat/rooms/addParticipants', {
+        room_id: roomId,
+        user_ids: participants.map(p => p.id),
+      });
+
+      return { roomId, participants: response.data.added_participants };
+    } catch (error: any) {
+      if (error.response) {
+        return rejectWithValue(error.response.data);
+      }
+      return rejectWithValue({ message: 'Failed to add participants' });
+    }
+  }
+);
+
+
 const singleChatRoomSlice = createSlice({
   name: 'singleChatRoom',
   initialState,
@@ -71,6 +104,32 @@ const singleChatRoomSlice = createSlice({
         state.error =
           (action.payload as { message: string })?.message ||
           'Failed to fetch chat room details';
+      })
+      .addCase(addParticipants.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(addParticipants.fulfilled, (state, action) => {
+        const { roomId, participants, temporary } = action.payload;
+
+        const room = state.rooms[roomId];
+
+        if (room) {
+          const existingIds = new Set(room.participants.map((p: User) => p.id));
+          const newParticipants = participants.filter((p: User) => !existingIds.has(p.id));
+
+          if (temporary) {
+            room.participants = [...room.participants, ...newParticipants];
+          } else if (participants) {
+            room.participants = [...room.participants, ...newParticipants];
+          }
+        }
+
+        state.loading = false;
+      })
+      .addCase(addParticipants.rejected, (state, action) => {
+        state.loading = false;
+        state.error = (action.payload as { message: string })?.message || 'Failed to add participants';
       });
   },
 });

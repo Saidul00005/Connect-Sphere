@@ -98,14 +98,48 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         chatroom = serializer.save(created_by=self.request.user)
         chatroom.participants.add(self.request.user, *participants) 
         
-    @action(detail=False, methods=['post'])
-    def add_participant(self, request):
-        room_id = request.data.get('room_id')
-        user_id = request.data.get('user_id')
+    # @action(detail=False, methods=['post'])
+    # def add_participant(self, request):
+    #     room_id = request.data.get('room_id')
+    #     user_id = request.data.get('user_id')
 
-        if not room_id or not user_id:
+    #     if not room_id or not user_id:
+    #         return Response(
+    #             {'error': 'Both room_id and user_id are required'},
+    #             status=status.HTTP_400_BAD_REQUEST
+    #         )
+
+    #     try:
+    #         room = ChatRoom.objects.get(id=room_id)
+    #     except ChatRoom.DoesNotExist:
+    #         return Response(
+    #             {'error': 'Room not found'},
+    #             status=status.HTTP_404_NOT_FOUND
+    #         )
+
+    #     if room.created_by != self.request.user:
+    #         return Response(
+    #             {'error': 'You do not have permission to add participants to this room'},
+    #             status=status.HTTP_403_FORBIDDEN
+    #         )
+
+    #     room.participants.add(user_id)
+    #     return Response({'message': 'Participant added successfully'})
+
+    @action(detail=False, methods=['post'])
+    def add_participants(self, request):
+        room_id = request.data.get('room_id')
+        user_ids = request.data.get('user_ids', [])
+        
+        if not room_id or not user_ids:
             return Response(
-                {'error': 'Both room_id and user_id are required'},
+                {'error': 'Both room_id and user_ids are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not isinstance(user_ids, list):
+            return Response(
+                {'error': 'user_ids must be a list of IDs.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -116,15 +150,26 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
                 {'error': 'Room not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
+        
+        if room.type != 'GROUP':
+            return Response(
+                {'error': 'Participants can only be added to group chatrooms.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        if room.created_by != self.request.user:
+
+        if room.created_by != request.user:
             return Response(
                 {'error': 'You do not have permission to add participants to this room'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        room.participants.add(user_id)
-        return Response({'message': 'Participant added successfully'})
+        if request.user.id in user_ids:
+            user_ids.remove(request.user.id)
+        
+        room.participants.add(*user_ids)
+
+        return Response({'message': 'Participants added successfully'}, status=status.HTTP_200_OK)
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -320,6 +365,40 @@ class MessageViewSet(viewsets.ModelViewSet):
 
         return Response(
             {'message': 'Message soft deleted successfully'},
+            status=status.HTTP_200_OK
+        )
+
+    @action(detail=False, methods=['post'])
+    def mark_as_read(self, request):
+        user = request.user
+        room_id = request.data.get('room_id')
+
+        if not room_id:
+            return Response(
+                {'error': 'room_id is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            room = ChatRoom.objects.get(id=room_id, participants=user)
+        except ChatRoom.DoesNotExist:
+            return Response(
+                {'error': 'Room not found or access denied.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+            
+        unread_messages = Message.objects.filter(room=room).exclude(read_by=user)
+
+        # Use the through model to bulk create read_by entries
+        MessageRead = Message.read_by.through
+        objs = [
+            MessageRead(message_id=message.id, user_id=user.id)
+            for message in unread_messages
+        ]
+        MessageRead.objects.bulk_create(objs)
+
+        return Response(
+            {'message': 'All messages marked as read successfully.'},
             status=status.HTTP_200_OK
         )
 
