@@ -5,7 +5,11 @@ import type {
   ChatMessageState,
   FetchMessageParams,
 } from "@/app/dashboard/chat/chat-history/types/chatMessagesTypes"
+import type {
+  User
+} from "@/app/dashboard/chat/chat-history/types/chatHistoryTypes"
 import { RootState } from "../store";
+import { updateUnreadCount } from "@/app/redux/slices/chatRoomsSlice";
 
 const initialState: ChatMessageState = {
   allMessages: [],
@@ -103,6 +107,30 @@ export const deleteMessage = createAsyncThunk<
   }
 });
 
+
+export const markMessagesAsRead = createAsyncThunk<
+  void,
+  { roomId: number; user: User },
+  { rejectValue: string; state: RootState }
+>(
+  "chatMessages/markAsRead",
+  async ({ roomId, user }, { rejectWithValue, dispatch }) => {
+    try {
+      await axios.post("/api/chat/messages/mark_as_read", { room_id: roomId });
+
+      dispatch(markMessagesRead({ roomId, user }));
+
+      dispatch(updateUnreadCount(roomId));
+
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        return rejectWithValue(error.response?.data?.error || "Failed to mark messages as read");
+      }
+      return rejectWithValue("Failed to mark messages as read");
+    }
+  }
+);
+
 const chatMessagesSlice = createSlice({
   name: "chatMessages",
   initialState,
@@ -113,6 +141,19 @@ const chatMessagesSlice = createSlice({
       state.loading = false
       state.error = null
     },
+    markMessagesRead: (state, action: PayloadAction<{ roomId: number; user: User }>) => {
+      state.allMessages = state.allMessages.map(message => {
+        if (message.room === action.payload.roomId &&
+          !message.read_by?.some(u => u.id === action.payload.user.id)) {
+          return {
+            ...message,
+            read_by: [...(message.read_by || []), action.payload.user],
+            is_delivered: true
+          };
+        }
+        return message;
+      });
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -131,7 +172,10 @@ const chatMessagesSlice = createSlice({
         state.error = action.payload || "An error occurred"
       })
       .addCase(sendMessage.fulfilled, (state, action) => {
-        state.allMessages.push(action.payload)
+        state.allMessages.push({
+          ...action.payload,
+          read_by: action.payload.read_by || []
+        });
       })
       .addCase(editMessage.fulfilled, (state, action) => {
         const { messageId, content } = action.payload
@@ -153,5 +197,5 @@ const chatMessagesSlice = createSlice({
   },
 })
 
-export const { resetMessages } = chatMessagesSlice.actions
+export const { resetMessages, markMessagesRead } = chatMessagesSlice.actions
 export default chatMessagesSlice.reducer

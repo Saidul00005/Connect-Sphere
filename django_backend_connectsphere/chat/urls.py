@@ -21,6 +21,7 @@ urlpatterns = [
 
 
     path('messages/', MessageViewSet.as_view({'get': 'list'}), name='list_messages_for_request_user'),
+    path('messages/mark_as_read/', MessageViewSet.as_view({'post': 'mark_as_read'}), name='mark_as_read_messages_in_specific_chatroom_for_request_user'),
     path('messages/create/', MessageViewSet.as_view({'post': 'create'}), name='create_message_in_chat_room_for_chatroom_participants'),
 
     path('messages/<int:pk>/', MessageViewSet.as_view({'get': 'retrieve'}), name='fetch_message_details_for_message_sender'),

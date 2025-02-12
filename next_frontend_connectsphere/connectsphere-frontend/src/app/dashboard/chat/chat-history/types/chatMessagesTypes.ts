@@ -1,3 +1,5 @@
+import { User } from "@/app/dashboard/chat/chat-history/types/chatHistoryTypes"
+
 export interface Message {
   id: number;
   room: number;
@@ -9,7 +11,7 @@ export interface Message {
   content: string;
   timestamp: string;
   is_deleted: boolean;
-  read_by: any[];
+  read_by: User[];
   is_modified: boolean;
   last_modified_at: string;
   is_restored: boolean;

@@ -10,6 +10,8 @@ from rest_framework.throttling import UserRateThrottle
 from django.utils import timezone
 from django.db.models import OuterRef,Count,Subquery,Prefetch,IntegerField,Q
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError
+from accounts.models import User
 
 class ChatRoomViewSet(viewsets.ModelViewSet):
     queryset = ChatRoom.objects.all()
@@ -22,11 +24,16 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         request = self.request
         user = request.user
 
+        prefetch_users = Prefetch(
+        'participants', 
+        queryset=User.objects.only('id', 'first_name', 'last_name')
+        )
+
         last_message_subquery = Message.objects.filter(
             room=OuterRef('pk') 
         ).order_by('-timestamp')
 
-        chatrooms = ChatRoom.objects.annotate(
+        chatrooms = ChatRoom.objects.prefetch_related(prefetch_users).annotate(
         last_message_id=Subquery(last_message_subquery.values('id')[:1]),
         last_message_content=Subquery(last_message_subquery.values('content')[:1]),
         last_message_timestamp=Subquery(last_message_subquery.values('timestamp')[:1]),
@@ -34,9 +41,20 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         last_message_sender_id=Subquery(last_message_subquery.values('sender__id')[:1]),
         last_message_sender_first_name=Subquery(last_message_subquery.values('sender__first_name')[:1]),
         last_message_sender_last_name=Subquery(last_message_subquery.values('sender__last_name')[:1]),
-        unread_messages_count=Count(
-            'message',
-            filter=Q(message__is_deleted=False) & ~Q(message__read_by=user)
+        # unread_messages_count=Count(
+        #     'message',
+        #     filter=Q(message__is_deleted=False) & ~Q(message__read_by__id=user.id)
+        # )
+        unread_messages_count=Subquery(
+            Message.objects.filter(
+                room=OuterRef('pk'),
+                is_deleted=False
+            ).exclude(
+                read_by=user
+            ).values('room')
+            .annotate(count=Count('*'))
+            .values('count'),
+            output_field=IntegerField()
         )
         ).filter(is_deleted=False)
         
@@ -83,48 +101,35 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def perform_create(self, serializer):
-        chat_type = self.request.data.get('type') 
-        participants = set(self.request.data.get('participants', [])) 
+        chat_type = self.request.data.get('type')
+        participants = set(self.request.data.get('participants', []))
+        user = self.request.user
 
-        if self.request.user.id in participants: 
-            participants.remove(self.request.user.id)
+        if user.id in participants:
+            participants.remove(user.id)
 
-        if chat_type == 'DIRECT' and len(participants) != 1:  
-            raise ValidationError("A direct chat must have exactly 2 participants (including creator).")
+        if chat_type == 'DIRECT' and len(participants) != 1:
+            raise ValidationError("Direct chats require exactly 2 participants.")
+        elif chat_type == 'GROUP' and len(participants) < 2:
+            raise ValidationError("Group chats require at least 3 participants.")
 
-        if chat_type == 'GROUP' and len(participants) < 2:  
-            raise ValidationError("A group chat must have at least 3 participants (including creator).")
+        participants_hash = None
+        if chat_type == 'DIRECT':
+            other_user_id = participants.pop()
+            participant_ids = sorted([user.id, other_user_id])
+            participants_hash = f"{participant_ids[0]}-{participant_ids[1]}"
 
-        chatroom = serializer.save(created_by=self.request.user)
-        chatroom.participants.add(self.request.user, *participants) 
-        
-    # @action(detail=False, methods=['post'])
-    # def add_participant(self, request):
-    #     room_id = request.data.get('room_id')
-    #     user_id = request.data.get('user_id')
-
-    #     if not room_id or not user_id:
-    #         return Response(
-    #             {'error': 'Both room_id and user_id are required'},
-    #             status=status.HTTP_400_BAD_REQUEST
-    #         )
-
-    #     try:
-    #         room = ChatRoom.objects.get(id=room_id)
-    #     except ChatRoom.DoesNotExist:
-    #         return Response(
-    #             {'error': 'Room not found'},
-    #             status=status.HTTP_404_NOT_FOUND
-    #         )
-
-    #     if room.created_by != self.request.user:
-    #         return Response(
-    #             {'error': 'You do not have permission to add participants to this room'},
-    #             status=status.HTTP_403_FORBIDDEN
-    #         )
-
-    #     room.participants.add(user_id)
-    #     return Response({'message': 'Participant added successfully'})
+        try:
+            chatroom = serializer.save(
+                created_by=user,
+                participants_hash=participants_hash,
+                name=None if chat_type == 'DIRECT' else serializer.validated_data.get('name') 
+            )
+            chatroom.participants.add(user, *participants)
+        except IntegrityError as e:
+            if 'unique_direct_chat' in str(e):
+                raise ValidationError("A direct chat already exists between these users.")
+            raise
 
     @action(detail=False, methods=['post'])
     def add_participants(self, request):
@@ -270,7 +275,7 @@ class MessageViewSet(viewsets.ModelViewSet):
         if not ChatRoom.objects.filter(id=room_id, participants=self.request.user).exists():
             raise PermissionDenied(detail="You are not a participant of this room.")
 
-        serializer.save(sender=self.request.user)
+        serializer.save(sender=self.request.user, is_sent=True)
 
     def update(self, request, *args, **kwargs):
         message_id = kwargs.get('pk')
@@ -386,19 +391,43 @@ class MessageViewSet(viewsets.ModelViewSet):
                 {'error': 'Room not found or access denied.'},
                 status=status.HTTP_404_NOT_FOUND
             )
-            
-        unread_messages = Message.objects.filter(room=room).exclude(read_by=user)
 
-        # Use the through model to bulk create read_by entries
+        unread_message_ids = Message.objects.filter(
+            room=room,
+            is_deleted=False
+        ).exclude(
+            read_by=user
+        ).values_list('id', flat=True)
+
+        if not unread_message_ids:
+            return Response(
+                {'message': 'No unread messages found.'},
+                status=status.HTTP_200_OK
+            )
+
         MessageRead = Message.read_by.through
-        objs = [
-            MessageRead(message_id=message.id, user_id=user.id)
-            for message in unread_messages
-        ]
-        MessageRead.objects.bulk_create(objs)
+        batch_size = 500  
+        
+        try:
+            for i in range(0, len(unread_message_ids), batch_size):
+                batch = unread_message_ids[i:i + batch_size]
+                objs = [
+                    MessageRead(message_id=mid, user_id=user.id)
+                    for mid in batch
+                ]
+                MessageRead.objects.bulk_create(objs, ignore_conflicts=True)
+                
+        except Exception as e:
+            return Response(
+                {'error': f'Error marking messages as read: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         return Response(
-            {'message': 'All messages marked as read successfully.'},
+            {
+                'message': 'Messages marked as read successfully.',
+                'count': len(unread_message_ids)
+            },
             status=status.HTTP_200_OK
         )
 

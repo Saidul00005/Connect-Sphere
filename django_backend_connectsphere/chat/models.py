@@ -26,6 +26,16 @@ class ChatRoom(models.Model):
 
     is_restored = models.BooleanField(default=False)
     last_restore_at = models.DateTimeField(null=True, blank=True)
+    participants_hash = models.CharField(max_length=64, blank=True, null=True, db_index=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['type', 'participants_hash'],
+                name='unique_direct_chat',
+                condition=models.Q(type='DIRECT')
+            ),
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.type})" if self.name else f"ChatRoom {self.id} ({self.type})"
@@ -52,5 +62,17 @@ class Message(models.Model):
     is_sent = models.BooleanField(default=False)
     read_by = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='read_messages', blank=True,db_index=True)
 
+
     def __str__(self):
         return f"Message {self.id} in {self.room.name} by {self.sender.username}"
+
+# class MessageRead(models.Model):
+#     message = models.ForeignKey(Message, on_delete=models.CASCADE)
+#     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    
+#     class Meta:
+#         indexes = [
+#             models.Index(fields=['message', 'user'], name='read_by_message_user_idx'),
+#         ]
+
+#         db_table = 'chat_message_read'

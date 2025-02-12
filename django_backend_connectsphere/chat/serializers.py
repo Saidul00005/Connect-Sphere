@@ -12,7 +12,8 @@ class ChatRoomSerializer(serializers.ModelSerializer):
     created_by = UserSerializer(read_only=True) 
     participants = UserSerializer(many=True, read_only=True) 
     last_message = serializers.SerializerMethodField() 
-    unread_messages_count = serializers.SerializerMethodField()
+    unread_messages_count = serializers.IntegerField(read_only=True)
+    name = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatRoom
@@ -30,6 +31,20 @@ class ChatRoomSerializer(serializers.ModelSerializer):
             'is_restored': {'read_only': True},
             'last_restore_at': {'read_only': True},
         }
+
+    def get_name(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return obj.name  
+
+        if obj.type == 'DIRECT':
+            other_user = next(
+                (u for u in obj.participants.all() if u != request.user),
+                None
+            )
+            return f"{other_user.first_name} {other_user.last_name}" if other_user else "Deleted User"
+
+        return obj.name
 
     def get_last_message(self, obj):
 
@@ -60,7 +75,8 @@ class ChatRoomSerializer(serializers.ModelSerializer):
 
 
     def get_unread_messages_count(self, obj):
-        return getattr(obj, 'unread_messages_count', 0)
+        # return getattr(obj, 'unread_messages_count', 0)
+        return obj.unread_messages_count or 0
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True) 

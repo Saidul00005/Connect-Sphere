@@ -91,6 +91,21 @@ const chatRoomsSliceForUser = createSlice({
       state.allRooms = [];
       state.nextPage = null;
     },
+    // updateUnreadCount: (state, action: PayloadAction<number>) => {
+    //   const room = state.allRooms.find(r => r.id === action.payload);
+    //   if (room) {
+    //     room.unread_messages_count = 0;
+    //   }
+    // }
+    updateUnreadCount: (state, action: PayloadAction<number>) => {
+      state.allRooms = state.allRooms.map(room => {
+        if (room.id === action.payload) {
+          return { ...room, unread_messages_count: 0 };
+        }
+        return room;
+      });
+      state.nextPage = null;
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -135,5 +150,5 @@ const chatRoomsSliceForUser = createSlice({
   },
 });
 
-export const { resetChatRooms } = chatRoomsSliceForUser.actions;
+export const { resetChatRooms, updateUnreadCount } = chatRoomsSliceForUser.actions;
 export default chatRoomsSliceForUser.reducer;
