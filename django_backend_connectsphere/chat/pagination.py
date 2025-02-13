@@ -53,5 +53,5 @@ class CursorMessagePagination(BaseCursorPagination):
 
 
 class CursorChatroomPagination(BaseCursorPagination):
-    ordering = ('last_modified_at', 'id')  
+    ordering = ('-last_modified_at','-created_at', '-id')  
     # page_size = 6  # Uncomment to override default page size for this class

@@ -13,8 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Users, MessageSquarePlus, X } from "lucide-react"
+import { Users, X } from "lucide-react"
 import { getFilterKey } from "@/app/dashboard/collegues/types/employeeListTypes"
 import type { Employee } from "@/app/dashboard/collegues/types/employeeListTypes"
 import { useRouter } from "next/navigation"
@@ -26,6 +25,7 @@ import {
   resetForm
 } from "@/app/redux/slices/createChatRoomSlice"
 import { useSession } from "next-auth/react";
+import { useToast } from "@/hooks/use-toast"
 
 type ChatType = "GROUP" | "DIRECT"
 
@@ -43,6 +43,8 @@ export default function CreateChatRoom() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [department, setDepartment] = useState("")
+  const [isCreating, setIsCreating] = useState(false)
+  const { toast } = useToast()
 
   const {
     type,
@@ -112,6 +114,9 @@ export default function CreateChatRoom() {
   }
 
   const handleParticipantSelect = (employee: Employee) => {
+    if (employee.user__id === Number(session?.user?.id)) {
+      return;
+    }
     dispatch(addParticipant(employee))
   }
 
@@ -162,19 +167,35 @@ export default function CreateChatRoom() {
     const participantIds = selectedParticipants.map(p => p.user__id)
 
     if ((type === "DIRECT" && participantIds.length !== 1) ||
-      (type === "GROUP" && participantIds.length < 2)) {
+      (type === "GROUP" && selectedParticipants.length < 2)) {
       return
     }
 
-    const directMessageRoomName = type === "DIRECT"
-      ? `${selectedParticipants[0].user__first_name} ${selectedParticipants[0].user__last_name}`
-      : name
-
-    await dispatch(createChatRoom({
-      name: directMessageRoomName,
-      type,
-      participants: participantIds,
-    }))
+    setIsCreating(true)
+    try {
+      if (type === "DIRECT") {
+        const otherParticipant = selectedParticipants[0]
+        await dispatch(createChatRoom({
+          type: "DIRECT",
+          participants: participantIds,
+          otherParticipantName: `${otherParticipant.user__first_name} ${otherParticipant.user__last_name}`
+        })).unwrap()
+      } else {
+        await dispatch(createChatRoom({
+          name,
+          type: "GROUP",
+          participants: participantIds
+        })).unwrap()
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error Creating Chat Room",
+        description: error?.message || "Something went wrong while creating the chat room.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsCreating(false)
+    }
   }
 
 
@@ -345,7 +366,7 @@ export default function CreateChatRoom() {
             (type === "GROUP" && !name.trim())
           }
         >
-          Create Chat Room
+          {isCreating ? "Creating..." : "Create Chat Room"}
         </Button>
       </div>
     </div>

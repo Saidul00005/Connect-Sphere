@@ -58,7 +58,7 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         )
         ).filter(is_deleted=False)
         
-        return chatrooms
+        return chatrooms.order_by('-last_modified_at','-created_at','-id')
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
@@ -114,22 +114,39 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             raise ValidationError("Group chats require at least 3 participants.")
 
         participants_hash = None
+        other_user_id = None
         if chat_type == 'DIRECT':
             other_user_id = participants.pop()
             participant_ids = sorted([user.id, other_user_id])
             participants_hash = f"{participant_ids[0]}-{participant_ids[1]}"
 
+            existing_chat = ChatRoom.objects.filter(
+                participants_hash=participants_hash,
+                is_deleted=True
+            ).first()
+
+            if existing_chat:
+                existing_chat.is_deleted = False
+                existing_chat.last_restore_at = timezone.now()
+                existing_chat.is_restored = True
+                existing_chat.save()
+                return
+
         try:
             chatroom = serializer.save(
                 created_by=user,
                 participants_hash=participants_hash,
-                name=None if chat_type == 'DIRECT' else serializer.validated_data.get('name') 
+                name=None if chat_type == 'DIRECT' else serializer.validated_data.get('name')
             )
-            chatroom.participants.add(user, *participants)
+            if chat_type == 'DIRECT':
+                chatroom.participants.add(user, other_user_id)
+            else:
+                chatroom.participants.add(user, *participants)
         except IntegrityError as e:
             if 'unique_direct_chat' in str(e):
                 raise ValidationError("A direct chat already exists between these users.")
             raise
+
 
     @action(detail=False, methods=['post'])
     def add_participants(self, request):

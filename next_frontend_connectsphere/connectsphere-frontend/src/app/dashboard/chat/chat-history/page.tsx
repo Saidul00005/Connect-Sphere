@@ -49,7 +49,7 @@ export default function ChatHistory() {
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (status === "authenticated" && allRooms.length === 0) {
+    if (status === "authenticated") {
       dispatch(resetChatRooms())
       dispatch(fetchChatRooms({ search: searchQuery }))
     }

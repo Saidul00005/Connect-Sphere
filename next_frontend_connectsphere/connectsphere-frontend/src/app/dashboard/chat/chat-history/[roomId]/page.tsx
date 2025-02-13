@@ -51,17 +51,27 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null)
   const [hasScrolledUp, setHasScrolledUp] = useState(false)
   const [messageToDelete, setMessageToDelete] = useState<number | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const initialFetch = useRef(false)
   const initialRoomFetch = useRef(false)
+  const initialLoad = useRef(true);
 
   useEffect(() => {
     return () => {
       dispatch(resetMessages())
     }
   }, [dispatch])
+
+  useEffect(() => {
+    if (initialLoad.current && !loading && allMessages.length > 0) {
+      scrollToBottom();
+      initialLoad.current = false;
+    }
+  }, [allMessages, loading]);
 
   useEffect(() => {
     if (status === "authenticated" && roomId && session?.user) {
@@ -76,10 +86,17 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
     }
   }, [roomId, dispatch, status, session?.user]);
 
-  // Scroll to bottom function
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
+  // const scrollToBottom = useCallback(() => {
+  //   if (messagesContainerRef.current) {
+  //     messagesContainerRef.current.scrollTo({
+  //       top: messagesContainerRef.current.scrollHeight,
+  //       behavior: "smooth"
+  //     });
+  //   }
+  // }, []);
 
   useEffect(() => {
     if (status === "authenticated" && !initialFetch.current) {
@@ -97,44 +114,64 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
 
   const handleLoadMore = useCallback(() => {
     if (nextCursor && !loading) {
-      dispatch(fetchMessages({ pageUrl: nextCursor, roomId }))
+      const container = messagesContainerRef.current;
+      const previousScrollHeight = container?.scrollHeight || 0;
+
+      dispatch(fetchMessages({ pageUrl: nextCursor, roomId })).then(() => {
+        if (container) {
+          const newScrollHeight = container.scrollHeight;
+          container.scrollTop = newScrollHeight - previousScrollHeight;
+        }
+      });
     }
-  }, [nextCursor, loading, dispatch, roomId])
+  }, [nextCursor, loading, dispatch, roomId]);
 
   const handleEdit = (messageId: number, content: string) => {
     setEditingMessageId(messageId)
     setEditContent(content)
   }
 
-  const handleDelete = (messageId: number) => {
-    dispatch(deleteMessage({ messageId, roomId }))
-    setMessageToDelete(null)
+  const handleDelete = async (messageId: number) => {
+    try {
+      setIsDeleting(true);
+      await dispatch(deleteMessage({ messageId, roomId })).unwrap()
+      setMessageToDelete(null);
+    } catch (error) {
+      toast({
+        title: "Delete Failed",
+        description: error instanceof Error ? error.message : "Failed to delete message",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   }
 
-  const handleSaveInlineEdit = (messageId: number) => {
-    if (editContent.trim()) {
-      dispatch(
+  const handleSaveInlineEdit = async (messageId: number) => {
+    if (!editContent.trim()) return;
+
+    try {
+      setIsEditing(true);
+      await dispatch(
         editMessage({
           messageId,
           content: editContent,
           roomId,
-        }),
-      )
-        .unwrap()
-        .then(() => {
-          setEditingMessageId(null)
-          setEditContent("")
         })
-        .catch((error) => {
-          console.error("Failed to edit message:", error)
-          toast({
-            title: "Error",
-            description: "Failed to edit message. Please try again.",
-            variant: "destructive",
-          })
-        })
+      ).unwrap();
+      setEditingMessageId(null);
+      setEditContent("");
+    } catch (error) {
+      console.error("Failed to edit message:", error);
+      toast({
+        title: "Error",
+        description: "Failed to edit message. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsEditing(false);
     }
-  }
+  };
 
   useEffect(() => {
     const container = messagesContainerRef.current
@@ -284,8 +321,12 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
                                     >
                                       Cancel
                                     </Button>
-                                    <Button type="submit" size="sm">
-                                      Save
+                                    <Button type="submit" size="sm" disabled={isEditing}>
+                                      {isEditing ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        "Save"
+                                      )}
                                     </Button>
                                   </div>
                                 </form>
@@ -314,8 +355,13 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
                                             setMessageToDelete(message.id)
                                           }}
                                           className="text-destructive"
+                                          disabled={isDeleting}
                                         >
-                                          Delete Message
+                                          {isDeleting ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : (
+                                            "Delete Message"
+                                          )}
                                         </DropdownMenuItem>
                                       </AlertDialogTrigger>
                                       <AlertDialogContent>
@@ -331,8 +377,13 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
                                           <AlertDialogAction
                                             onClick={() => handleDelete(message.id)}
                                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                            disabled={isDeleting}
                                           >
-                                            Delete
+                                            {isDeleting ? (
+                                              <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                              "Delete"
+                                            )}
                                           </AlertDialogAction>
                                         </AlertDialogFooter>
                                       </AlertDialogContent>

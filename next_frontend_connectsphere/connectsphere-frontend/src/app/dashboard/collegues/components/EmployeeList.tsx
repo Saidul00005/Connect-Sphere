@@ -28,7 +28,7 @@ import { fetchDepartments } from "@/app/redux/slices/DepartmentListSliceForUser"
 
 export default function EmployeeList() {
   const router = useRouter();
-  const { status } = useSession({
+  const { data: session, status } = useSession({
     required: true,
     onUnauthenticated() {
       router.push("/");
@@ -226,43 +226,48 @@ export default function EmployeeList() {
       </div>
 
       <div className="space-y-2">
-        {employees.map((employee) => (
-          <Card key={employee.id} className="bg-card hover:bg-muted/50 transition-colors">
-            <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground">
-                    {employee.user__first_name} {employee.user__last_name}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Company role: {employee.user__role_name}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Department designation: {employee.designation}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Department: {employee.department__name}
-                  </p>
+        {employees.map((employee) => {
+          const isCurrentUser = employee.user__id === Number(session?.user?.id)
+          return (
+            <Card key={employee.id} className="bg-card hover:bg-muted/50 transition-colors">
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {isCurrentUser ? "You" : `${employee.user__first_name} ${employee.user__last_name}`}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Company role: {employee.user__role_name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Department designation: {employee.designation}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Department: {employee.department__name}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1 sm:flex-none"
+                      onClick={() => setSelectedEmployeeUserId(employee.id)}
+                    >
+                      View Profile
+                    </Button>
+                    {!isCurrentUser && (
+                      <Button
+                        className="flex-1 sm:flex-none"
+                        onClick={() => console.log("Chat with:", employee.id)}
+                      >
+                        Chat
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1 sm:flex-none"
-                    onClick={() => setSelectedEmployeeUserId(employee.id)}
-                  >
-                    View Profile
-                  </Button>
-                  <Button
-                    className="flex-1 sm:flex-none"
-                    onClick={() => console.log("Chat with:", employee.id)}
-                  >
-                    Chat
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          )
+        })}
 
         {isLoading && (
           <>

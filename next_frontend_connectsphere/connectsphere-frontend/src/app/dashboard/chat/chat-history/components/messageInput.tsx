@@ -5,7 +5,8 @@ import { useToast } from "@/hooks/use-toast"
 import { useAppDispatch } from "@/app/redux/store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SendHorizontal } from "lucide-react"
+import { SendHorizontal, Loader2 } from "lucide-react"
+import { useState } from "react"
 
 interface MessageFormData {
   message: string
@@ -22,9 +23,11 @@ const MessageInput = ({ roomId, onMessageSent }: MessageInputProps) => {
   });
   const dispatch = useAppDispatch();
   const { toast } = useToast();
+  const [isSending, setIsSending] = useState(false);
 
   const onSubmit = async (data: MessageFormData) => {
     if (data.message.trim()) {
+      setIsSending(true);
       try {
         await dispatch(sendMessage({ content: data.message, roomId })).unwrap();
         form.reset();
@@ -36,6 +39,8 @@ const MessageInput = ({ roomId, onMessageSent }: MessageInputProps) => {
           description: "Failed to send message. Please try again.",
           variant: "destructive",
         });
+      } finally {
+        setIsSending(false);
       }
     }
   };
@@ -65,7 +70,11 @@ const MessageInput = ({ roomId, onMessageSent }: MessageInputProps) => {
             )}
           />
           <Button type="submit" size="icon">
-            <SendHorizontal className="h-4 w-4" />
+            {isSending ? (
+              <Loader2 className="animate-spin h-4 w-4" />
+            ) : (
+              <SendHorizontal className="h-4 w-4" />
+            )}
           </Button>
         </form>
       </Form>

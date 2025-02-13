@@ -15,6 +15,13 @@ const initialState: ChatRoomState = {
   error: null,
 };
 
+interface CreateChatRoomParams {
+  name?: string;
+  type: 'DIRECT' | 'GROUP';
+  participants: number[];
+  otherParticipantName?: string;
+}
+
 export const fetchChatRooms = createAsyncThunk<
   ChatRoomResponse,
   FetchChatRoomsParams,
@@ -44,16 +51,30 @@ export const fetchChatRooms = createAsyncThunk<
 
 export const createChatRoom = createAsyncThunk<
   ChatRoom,
-  { name: string; type: string; participants: number[] },
+  CreateChatRoomParams,
   { rejectValue: string }
 >(
   "chatRooms/create",
   async (chatRoomData, { rejectWithValue }) => {
     try {
+      const requestBody = {
+        type: chatRoomData.type,
+        participants: chatRoomData.participants,
+        name: chatRoomData.type === 'DIRECT' ? null : chatRoomData.name
+      };
+
       const response = await axios.post<ChatRoom>(
         "/api/chat/rooms/",
-        chatRoomData
+        requestBody
       );
+
+      if (chatRoomData.type === 'DIRECT' && chatRoomData.otherParticipantName) {
+        return {
+          ...response.data,
+          name: chatRoomData.otherParticipantName
+        };
+      }
+
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
