@@ -35,7 +35,7 @@ export const authOptions: NextAuthOptions = {
           );
 
           const userResponse = response.data;
-          console.log(userResponse)
+          // console.log(userResponse)
 
           if (!userResponse.access || !userResponse.refresh || !userResponse.user) {
             throw new Error("Invalid response from backend: Missing user, access token, or refresh token.");
@@ -75,6 +75,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
+    updateAge: 5 * 60,
     maxAge: 24 * 60 * 60, // 24 hours
   },
   callbacks: {
@@ -86,12 +87,12 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.token = user.token;
         token.refreshToken = user.refreshToken;
-        token.accessTokenExpiry = Date.now() + 50 * 60 * 1000; // Set expiry (50 minutes)
+        token.accessTokenExpiry = Date.now() + 60 * 60 * 1000; // Set expiry (60 minutes)
       }
 
       // Handle token expiration and refresh
       if (token.accessTokenExpiry && typeof token.accessTokenExpiry === "number") {
-        if (Date.now() > token.accessTokenExpiry - 10 * 60 * 1000) {
+        if (Date.now() === token.accessTokenExpiry) {
           try {
             const response = await axios.post(
               `${process.env.BACKEND_URL}/api/accounts/pytoken/refresh/`,
@@ -105,7 +106,8 @@ export const authOptions: NextAuthOptions = {
             );
 
             token.token = response.data.access;
-            token.accessTokenExpiry = Date.now() + 50 * 60 * 1000;
+            token.refreshToken = response.data.refresh || token.refreshToken;
+            token.accessTokenExpiry = Date.now() + 60 * 60 * 1000;
           } catch (error) {
             console.error("Token refresh error:");
 

@@ -45,6 +45,7 @@ INSTALLED_APPS = [
 
     # Thiparty apps
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
     'rest_framework_api_key',
     'corsheaders',
     'channels',
@@ -94,6 +95,8 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 # CORS_ALLOWED_ORIGINS =['http://192.168.1.7', 'http://localhost', 'http://127.0.0.1',]   

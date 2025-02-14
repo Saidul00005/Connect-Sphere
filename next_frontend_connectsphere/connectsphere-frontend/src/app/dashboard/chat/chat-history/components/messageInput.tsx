@@ -6,7 +6,8 @@ import { useAppDispatch } from "@/app/redux/store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SendHorizontal, Loader2 } from "lucide-react"
-import { useState } from "react"
+import { useState, useCallback } from "react"
+import { useSession } from "next-auth/react"
 
 interface MessageFormData {
   message: string
@@ -18,6 +19,7 @@ interface MessageInputProps {
 }
 
 const MessageInput = ({ roomId, onMessageSent }: MessageInputProps) => {
+  const { status } = useSession()
   const form = useForm<MessageFormData>({
     defaultValues: { message: "" },
   });
@@ -25,7 +27,16 @@ const MessageInput = ({ roomId, onMessageSent }: MessageInputProps) => {
   const { toast } = useToast();
   const [isSending, setIsSending] = useState(false);
 
-  const onSubmit = async (data: MessageFormData) => {
+  const onSubmit = useCallback(async (data: MessageFormData) => {
+    if (status !== "authenticated") {
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to send messages",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (data.message.trim()) {
       setIsSending(true);
       try {
@@ -43,7 +54,7 @@ const MessageInput = ({ roomId, onMessageSent }: MessageInputProps) => {
         setIsSending(false);
       }
     }
-  };
+  }, [dispatch, status, form.reset, onMessageSent, roomId])
 
   return (
     <div className="border-t p-4">

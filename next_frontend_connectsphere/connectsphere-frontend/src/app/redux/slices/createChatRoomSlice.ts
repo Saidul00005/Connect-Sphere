@@ -45,7 +45,7 @@ const createChatRoomFormSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder.addCase(createChatRoom.fulfilled, (state, action) => {
-      state.createdRoomId = action.payload.id;
+      state.createdRoomId = action.payload.chatroom.id;
     });
   }
 });

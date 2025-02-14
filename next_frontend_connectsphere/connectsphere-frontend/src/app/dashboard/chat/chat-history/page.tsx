@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { useAppDispatch, useAppSelector } from "@/app/redux/store"
 import {
   fetchChatRooms,
@@ -26,15 +26,12 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { AddParticipants } from "@/app/dashboard/chat/chat-history/components/AddParticipants"
+import { useToast } from "@/hooks/use-toast"
 
 export default function ChatHistory() {
   const router = useRouter()
-  const { data: session, status } = useSession({
-    required: true,
-    onUnauthenticated() {
-      router.push("/")
-    },
-  })
+  const { toast } = useToast()
+  const { data: session, status } = useSession()
   const dispatch = useAppDispatch()
   const {
     allRooms,
@@ -47,6 +44,7 @@ export default function ChatHistory() {
   const [deleteRoomId, setDeleteRoomId] = useState<number | null>(null)
   const [showAddParticipants, setShowAddParticipants] = useState(false)
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
+  const [deletingRooms, setDeletingRooms] = useState<number[]>([])
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -55,42 +53,67 @@ export default function ChatHistory() {
     }
   }, [status, searchQuery, dispatch])
 
-  const handleLoadMore = () => {
+  const handleLoadMore = useCallback(() => {
     if (nextPage && !ChatroomListLoading) {
-      dispatch(fetchChatRooms({ pageUrl: nextPage }));
+      if (status === "authenticated") {
+        dispatch(fetchChatRooms({ pageUrl: nextPage }));
+      }
     }
-  };
+  }, [nextPage, ChatroomListLoading, status, dispatch]);
 
-  const handleSearchClick = () => {
+  const handleSearchClick = useCallback(() => {
     if (searchInputRef.current) {
-      setSearchQuery(searchInputRef.current.value)
+      setSearchQuery(searchInputRef.current.value);
     }
-  }
+  }, []);
 
-  const handleClearSearch = () => {
-    setSearchQuery("")
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery("");
     if (searchInputRef.current) {
-      searchInputRef.current.value = ""
+      searchInputRef.current.value = "";
     }
-    dispatch(resetChatRooms())
-    dispatch(fetchChatRooms({ pageUrl: null, search: "" }))
-  }
+    if (status === "authenticated") {
+      dispatch(resetChatRooms());
+      dispatch(fetchChatRooms({ pageUrl: null, search: "" }));
+    }
+  }, [status, dispatch]);
 
-  const handleDeleteClick = (e: React.MouseEvent, roomId: number) => {
-    e.stopPropagation()
-    setDeleteRoomId(roomId)
-  }
+  const handleDeleteClick = useCallback((e: React.MouseEvent, roomId: number) => {
+    e.stopPropagation();
+    setDeleteRoomId(roomId);
+  }, []);
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = useCallback(async () => {
+    if (status !== "authenticated") {
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to delete chat rooms",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (deleteRoomId) {
-      await dispatch(deleteChatRoom(deleteRoomId))
-      setDeleteRoomId(null)
+      setDeletingRooms((prev) => [...prev, deleteRoomId]);
+      try {
+        await dispatch(deleteChatRoom(deleteRoomId));
+        setDeleteRoomId(null);
+      } catch (error: any) {
+        toast({
+          title: "Error Deleting Chat Room",
+          description:
+            error?.message || "Something went wrong while deleting the chat room.",
+          variant: "destructive",
+        });
+      } finally {
+        setDeletingRooms((prev) => prev.filter((id) => id !== deleteRoomId));
+      }
     }
-  }
+  }, [deleteRoomId, dispatch, status, session?.user?.id, toast])
 
-  const handleRoomSelect = (roomId: number) => {
-    router.push(`/dashboard/chat/chat-history/${roomId}`)
-  }
+  const handleRoomSelect = useCallback((roomId: number) => {
+    router.push(`/dashboard/chat/chat-history/${roomId}`);
+  }, [router]);
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -193,8 +216,13 @@ export default function ChatHistory() {
                                 size="icon"
                                 className="text-muted-foreground hover:text-destructive"
                                 onClick={(e) => handleDeleteClick(e, room.id)}
+                                disabled={deletingRooms.includes(room.id)}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                {deletingRooms.includes(room.id) ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
                               </Button>
                             </>
                           )}
@@ -231,7 +259,7 @@ export default function ChatHistory() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Chat Room</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this chat room? This action cannot be undone.
+              Are you sure you want to delete this chat room?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -10,16 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 
 export default function UserProfile() {
-  const router = useRouter()
-  const { data: session, status } = useSession({
-    required: true,
-    onUnauthenticated() {
-      router.push("/")
-    },
-  })
+  const { status } = useSession()
   const dispatch = useAppDispatch()
   const { details, loading: userProfileLoading, error } = useAppSelector(
     (state) => state.userProfile

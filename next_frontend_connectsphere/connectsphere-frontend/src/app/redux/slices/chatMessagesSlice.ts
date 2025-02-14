@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import axios from "axios";
 import type {
+  Message,
   MessageResponse,
   ChatMessageState,
   FetchMessageParams,
@@ -54,7 +55,7 @@ export const fetchMessages = createAsyncThunk<
 );
 
 export const sendMessage = createAsyncThunk<
-  any,
+  Message,
   { content: string; roomId: string },
   { rejectValue: string }
 >("chatMessages/send", async ({ content, roomId }, { rejectWithValue }) => {
@@ -63,7 +64,7 @@ export const sendMessage = createAsyncThunk<
       room: parseInt(roomId),
       content
     });
-    return response.data;
+    return response.data
   } catch (error) {
     if (axios.isAxiosError(error)) {
       return rejectWithValue(error.response?.data?.error || "Failed to send message");

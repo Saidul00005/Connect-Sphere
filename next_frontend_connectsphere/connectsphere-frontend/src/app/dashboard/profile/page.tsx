@@ -4,50 +4,8 @@ import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { User, Users, FileText } from "lucide-react"
-import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
-import { Skeleton } from "@/components/ui/skeleton"
 
 export default function ProfilePage() {
-  const router = useRouter()
-  const { status } = useSession({
-    required: true,
-    onUnauthenticated() {
-      router.push("/")
-    },
-  })
-
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen w-full bg-muted/40">
-        <div className="mx-auto max-w-4xl px-4 py-12">
-          {/* Loading Header */}
-          <div className="mb-16 text-center">
-            <Skeleton className="mx-auto h-8 w-[300px]" />
-            <Skeleton className="mx-auto mt-4 h-4 w-[400px]" />
-          </div>
-
-          {/* Loading Grid */}
-          <div className="grid gap-6 md:grid-cols-3">
-            {[...Array(3)].map((_, i) => (
-              <Card key={i} className="p-8">
-                <div className="flex flex-col items-center space-y-4">
-                  <Skeleton className="h-12 w-12 rounded-full" />
-                  <Skeleton className="h-6 w-[150px]" />
-                  <Skeleton className="h-4 w-[200px]" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-              </Card>
-            ))}
-          </div>
-
-          {/* Loading Footer */}
-          <Skeleton className="mx-auto mt-12 h-4 w-[300px]" />
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen w-full bg-muted/40">
       <div className="mx-auto max-w-4xl px-4 py-12">

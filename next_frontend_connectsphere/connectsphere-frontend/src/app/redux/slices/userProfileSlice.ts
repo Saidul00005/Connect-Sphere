@@ -71,7 +71,6 @@ const userProfileSlice = createSlice({
           is_deleted,
         } = action.payload
 
-        // Map the API response to the state structure
         state.details = {
           id,
           email,

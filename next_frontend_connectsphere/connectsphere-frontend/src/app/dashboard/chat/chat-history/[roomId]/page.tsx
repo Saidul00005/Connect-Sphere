@@ -36,12 +36,7 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   const router = useRouter()
   const dispatch = useAppDispatch()
   const { toast } = useToast()
-  const { data: session, status } = useSession({
-    required: true,
-    onUnauthenticated() {
-      router.push("/")
-    },
-  })
+  const { data: session, status } = useSession()
 
   const { allMessages, nextCursor, loading, error } = useAppSelector((state) => state.chatMessages)
   const singleChatRoom = useAppSelector((state) => state.singleChatRoom.rooms[Number(roomId)])
@@ -62,9 +57,11 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
 
   useEffect(() => {
     return () => {
-      dispatch(resetMessages())
+      if (status === "authenticated") {
+        dispatch(resetMessages())
+      }
     }
-  }, [dispatch])
+  }, [status, dispatch])
 
   useEffect(() => {
     if (initialLoad.current && !loading && allMessages.length > 0) {
@@ -86,9 +83,9 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
     }
   }, [roomId, dispatch, status, session?.user]);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
+  }, [])
   // const scrollToBottom = useCallback(() => {
   //   if (messagesContainerRef.current) {
   //     messagesContainerRef.current.scrollTo({
@@ -113,6 +110,16 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   }, [roomId, singleChatRoom, dispatch, status])
 
   const handleLoadMore = useCallback(() => {
+
+    if (status !== "authenticated") {
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to view messages",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (nextCursor && !loading) {
       const container = messagesContainerRef.current;
       const previousScrollHeight = container?.scrollHeight || 0;
@@ -124,14 +131,23 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
         }
       });
     }
-  }, [nextCursor, loading, dispatch, roomId]);
+  }, [nextCursor, loading, dispatch, roomId, status]);
 
-  const handleEdit = (messageId: number, content: string) => {
+  const handleEdit = useCallback((messageId: number, content: string) => {
     setEditingMessageId(messageId)
     setEditContent(content)
-  }
+  }, []);
 
-  const handleDelete = async (messageId: number) => {
+  const handleDelete = useCallback(async (messageId: number) => {
+    if (status !== "authenticated") {
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to delete messages",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setIsDeleting(true);
       await dispatch(deleteMessage({ messageId, roomId })).unwrap()
@@ -145,9 +161,18 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
     } finally {
       setIsDeleting(false);
     }
-  }
+  }, [status, dispatch, roomId, toast])
 
-  const handleSaveInlineEdit = async (messageId: number) => {
+  const handleSaveInlineEdit = useCallback(async (messageId: number) => {
+    if (status !== "authenticated") {
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to edit messages",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!editContent.trim()) return;
 
     try {
@@ -171,7 +196,7 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
     } finally {
       setIsEditing(false);
     }
-  };
+  }, [status, editContent, dispatch, roomId, toast])
 
   useEffect(() => {
     const container = messagesContainerRef.current

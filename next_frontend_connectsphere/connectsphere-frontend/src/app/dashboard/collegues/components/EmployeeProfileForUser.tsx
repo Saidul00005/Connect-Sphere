@@ -5,7 +5,6 @@ import { CalendarDays, User2, Building2, Phone, MapPin, Trophy } from "lucide-re
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useEffect, useState } from "react"
 import { useAppSelector, useAppDispatch } from "@/app/redux/store"
@@ -18,13 +17,7 @@ interface ProfilePageProps {
 }
 
 export default function ProfilePage({ userId }: ProfilePageProps) {
-  const router = useRouter()
-  const { status } = useSession({
-    required: true,
-    onUnauthenticated() {
-      router.push("/")
-    },
-  })
+  const { status } = useSession()
 
   const dispatch = useAppDispatch()
   const { profiles, loading: employeeProfileLoading, error } = useAppSelector((state) => state.employee)

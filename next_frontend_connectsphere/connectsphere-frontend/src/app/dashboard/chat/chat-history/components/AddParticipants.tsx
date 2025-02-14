@@ -16,9 +16,10 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Search, Users } from "lucide-react"
+import { ArrowLeft, Search, Users, Loader2 } from "lucide-react"
 import type { User } from '@/app/dashboard/chat/chat-history/types/chatHistoryTypes';
 import { useToast } from "@/hooks/use-toast"
+import { useSession } from "next-auth/react"
 
 interface AddParticipantsProps {
   onBack: () => void
@@ -27,6 +28,7 @@ interface AddParticipantsProps {
 }
 
 export function AddParticipants({ onBack, roomId, existingParticipants }: AddParticipantsProps) {
+  const { status } = useSession()
   const dispatch = useAppDispatch()
   const [selectedParticipants, setSelectedParticipants] = useState<User[]>([])
   const { toast } = useToast()
@@ -34,6 +36,7 @@ export function AddParticipants({ onBack, roomId, existingParticipants }: AddPar
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [department, setDepartment] = useState("")
+  const [loading, setLoading] = useState(false)
 
   const componentKey = "addParticipants"
   const filterKey = getFilterKey(department, searchTerm, componentKey)
@@ -58,91 +61,117 @@ export function AddParticipants({ onBack, roomId, existingParticipants }: AddPar
   const totalPages = pageData ? Math.ceil(pageData.count / pageSize) : 1
 
   useEffect(() => {
-    dispatch(resetEmployees(componentKey))
-    dispatch(fetchEmployees({
-      pageUrl: null,
-      department,
-      search: searchTerm,
-      component: componentKey
-    }))
-  }, [dispatch, department, searchTerm])
+    if (status === "authenticated") {
+      dispatch(resetEmployees(componentKey))
+      dispatch(fetchEmployees({
+        pageUrl: null,
+        department,
+        search: searchTerm,
+        component: componentKey
+      }))
+    }
+  }, [status, dispatch, department, searchTerm])
 
   useEffect(() => {
-    if (departments.length === 0) {
-      dispatch(fetchDepartments())
+    if (status === "authenticated") {
+      if (departments.length === 0) {
+        dispatch(fetchDepartments())
+      }
     }
-  }, [dispatch, departments.length])
+  }, [status, dispatch, departments.length])
 
-  const handleSearch = () => {
+  const handleSearch = useCallback(() => {
     if (searchInputRef.current) {
       setSearchTerm(searchInputRef.current.value)
     }
-  }
+  }, [])
 
-  const handleDepartmentChange = (value: string) => {
+  const handleDepartmentChange = useCallback((value: string) => {
     setDepartment(value)
-  }
+  }, [])
 
-  const handleClearFilters = () => {
+  const handleClearFilters = useCallback(() => {
     setDepartment("")
     setSearchTerm("")
     if (searchInputRef.current) {
       searchInputRef.current.value = ""
     }
-    dispatch(resetEmployees(componentKey))
-    dispatch(fetchEmployees({ pageUrl: null, department: "", search: "", component: componentKey }))
-  }
+    if (status === "authenticated") {
+      dispatch(resetEmployees(componentKey))
+      dispatch(fetchEmployees({ pageUrl: null, department: "", search: "", component: componentKey }))
+    }
+  }, [status, dispatch])
 
   const handlePreviousPage = useCallback(() => {
     if (previousPageUrl && !employeeListLoading && !departmentListLoading) {
       const prevPageNumber = new URL(previousPageUrl, window.location.origin).searchParams.get("page") || "1"
 
       if (!pages[filterKey]?.[prevPageNumber]) {
-        dispatch(fetchEmployees({
-          pageUrl: previousPageUrl,
-          department,
-          search: searchTerm,
-          component: componentKey
-        }))
+        if (status === "authenticated") {
+          dispatch(fetchEmployees({
+            pageUrl: previousPageUrl,
+            department,
+            search: searchTerm,
+            component: componentKey
+          }))
+        }
       } else {
-        dispatch(setCurrentPage({ [filterKey]: prevPageNumber }))
+        if (status === "authenticated") {
+          dispatch(setCurrentPage({ [filterKey]: prevPageNumber }))
+        }
       }
     }
-  }, [previousPageUrl, employeeListLoading, departmentListLoading, dispatch, pages, filterKey, department, searchTerm])
+  }, [status, previousPageUrl, employeeListLoading, departmentListLoading, dispatch, pages, filterKey, department, searchTerm])
 
   const handleNextPage = useCallback(() => {
     if (nextPageUrl && !employeeListLoading && !departmentListLoading) {
       const nextPageNumber = new URL(nextPageUrl, window.location.origin).searchParams.get("page") || "1"
 
       if (!pages[filterKey]?.[nextPageNumber]) {
-        dispatch(fetchEmployees({
-          pageUrl: nextPageUrl,
-          department,
-          search: searchTerm,
-          component: componentKey
-        }))
+        if (status === "authenticated") {
+          dispatch(fetchEmployees({
+            pageUrl: nextPageUrl,
+            department,
+            search: searchTerm,
+            component: componentKey
+          }))
+        }
       } else {
-        dispatch(setCurrentPage({ [filterKey]: nextPageNumber }))
+        if (status === "authenticated") {
+          dispatch(setCurrentPage({ [filterKey]: nextPageNumber }))
+        }
       }
     }
-  }, [nextPageUrl, employeeListLoading, departmentListLoading, dispatch, pages, filterKey, department, searchTerm])
+  }, [status, nextPageUrl, employeeListLoading, departmentListLoading, dispatch, pages, filterKey, department, searchTerm])
 
-  const handleSubmit = () => {
-    if (selectedParticipants.length > 0) {
-      dispatch(addParticipants({
-        roomId,
-        participants: selectedParticipants
-      })).then(() => {
-        toast({
-          title: "Participants Added",
-          description: "Participants were successfully added to the chat room.",
-        })
-        onBack()
+  const handleSubmit = useCallback(async () => {
+    if (selectedParticipants.length === 0) return
+
+    setLoading(true)
+    try {
+      if (status === "authenticated") {
+        await dispatch(
+          addParticipants({ roomId, participants: selectedParticipants })
+        ).unwrap()
+      }
+
+      toast({
+        title: "Participants Added",
+        description: "Participants were successfully added to the chat room.",
       })
+      onBack()
+    } catch (error: any) {
+      toast({
+        title: "Error Adding Participants",
+        description: error.message || "Something went wrong. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
     }
-  }
+  }, [status, selectedParticipants, roomId, dispatch, toast, onBack])
 
-  const handleEmployeeClick = (employee: Employee) => {
+  const handleEmployeeClick = useCallback((employee: Employee) => {
     if (existingParticipants.some(p => p.id === employee.user__id)) return;
 
     setSelectedParticipants(prev => {
@@ -160,7 +189,7 @@ export function AddParticipants({ onBack, roomId, existingParticipants }: AddPar
         last_name: employee.user__last_name
       }];
     });
-  };
+  }, [existingParticipants])
 
   return (
     <div className="fixed inset-0 bg-background z-50 p-4">
@@ -275,9 +304,13 @@ export function AddParticipants({ onBack, roomId, existingParticipants }: AddPar
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={selectedParticipants.length === 0}
+            disabled={selectedParticipants.length === 0 || loading}
           >
-            Add Selected ({selectedParticipants.length})
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              `Add Selected (${selectedParticipants.length})`
+            )}
           </Button>
         </div>
 

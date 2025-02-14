@@ -32,12 +32,7 @@ type ChatType = "GROUP" | "DIRECT"
 export default function CreateChatRoom() {
   const router = useRouter()
 
-  const { data: session, status } = useSession({
-    required: true,
-    onUnauthenticated() {
-      router.push("/");
-    },
-  });
+  const { data: session, status } = useSession();
 
   const dispatch = useAppDispatch()
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -76,128 +71,176 @@ export default function CreateChatRoom() {
   useEffect(() => {
     if (createdRoomId) {
       router.push(`/dashboard/chat/chat-history?room=${createdRoomId}`)
-      dispatch(resetForm())
+      if (status === "authenticated") {
+        dispatch(resetForm())
+      }
     }
-  }, [createdRoomId, router, dispatch])
+  }, [status, createdRoomId, router, dispatch])
 
   useEffect(() => {
     if (status === "authenticated" && employees.length === 0) {
       dispatch(resetEmployees("createChatRoom"))
       dispatch(fetchEmployees({ pageUrl: null, department, search: searchTerm, component: "createChatRoom" }))
     }
-  }, [dispatch, department, searchTerm])
+  }, [status, dispatch, department, searchTerm])
 
   useEffect(() => {
     if (status === "authenticated" && departments.length === 0) {
       dispatch(fetchDepartments())
     }
-  }, [dispatch, departments.length])
+  }, [status, dispatch, departments.length])
 
-  const handleSearch = () => {
+  const handleSearch = useCallback(() => {
     if (searchInputRef.current) {
-      setSearchTerm(searchInputRef.current.value)
+      setSearchTerm(searchInputRef.current.value);
     }
-  }
+  }, []);
 
-  const handleDepartmentChange = (value: string) => {
-    setDepartment(value)
-  }
+  const handleDepartmentChange = useCallback((value: string) => {
+    setDepartment(value);
+  }, []);
 
-  const handleClearFilters = () => {
+  const handleClearFilters = useCallback(() => {
     setDepartment("")
     setSearchTerm("")
     if (searchInputRef.current) {
       searchInputRef.current.value = ""
     }
-    dispatch(resetEmployees("createChatRoom"))
-    dispatch(fetchEmployees({ pageUrl: null, department: "", search: "", component: "" }))
-  }
+    if (status === "authenticated") {
+      dispatch(resetEmployees("createChatRoom"))
+      dispatch(fetchEmployees({ pageUrl: null, department: "", search: "", component: "" }))
+    }
+  }, [status, dispatch])
 
-  const handleParticipantSelect = (employee: Employee) => {
+  const handleParticipantSelect = useCallback((employee: Employee) => {
     if (employee.user__id === Number(session?.user?.id)) {
       return;
     }
-    dispatch(addParticipant(employee))
-  }
+    dispatch(addParticipant(employee));
+  }, [session?.user?.id, dispatch]);
 
-  const handleParticipantRemove = (employeeId: number) => {
-    dispatch(removeParticipant(employeeId))
-  }
+
+  const handleParticipantRemove = useCallback((employeeId: number) => {
+    dispatch(removeParticipant(employeeId));
+  }, [dispatch]);
 
   const handlePreviousPage = useCallback(() => {
     if (previousPageUrl && !employeeListLoading && !departmentListLoading) {
       const prevPageNumber = new URL(previousPageUrl, window.location.origin).searchParams.get("page") || "1"
 
       if (!pages[filterKey]?.[prevPageNumber]) {
-        dispatch(
-          fetchEmployees({
-            pageUrl: previousPageUrl,
-            department,
-            search: searchTerm,
-            component: "createChatRoom"
-          })
-        )
+        if (status === "authenticated") {
+          dispatch(
+            fetchEmployees({
+              pageUrl: previousPageUrl,
+              department,
+              search: searchTerm,
+              component: "createChatRoom"
+            })
+          )
+        }
       } else {
-        dispatch(setCurrentPage({ [filterKey]: prevPageNumber }))
+        if (status === "authenticated") {
+          dispatch(setCurrentPage({ [filterKey]: prevPageNumber }))
+        }
       }
     }
-  }, [previousPageUrl, employeeListLoading, departmentListLoading, dispatch, pages, filterKey, department, searchTerm])
+  }, [status, previousPageUrl, employeeListLoading, departmentListLoading, dispatch, pages, filterKey, department, searchTerm])
 
   const handleNextPage = useCallback(() => {
     if (nextPageUrl && !employeeListLoading && !departmentListLoading) {
       const nextPageNumber = new URL(nextPageUrl, window.location.origin).searchParams.get("page") || "1"
 
       if (!pages[filterKey]?.[nextPageNumber]) {
-        dispatch(
-          fetchEmployees({
-            pageUrl: nextPageUrl,
-            department,
-            search: searchTerm,
-            component: "createChatRoom"
-          })
-        )
+        if (status === "authenticated") {
+          dispatch(
+            fetchEmployees({
+              pageUrl: nextPageUrl,
+              department,
+              search: searchTerm,
+              component: "createChatRoom"
+            })
+          )
+        }
       } else {
-        dispatch(setCurrentPage({ [filterKey]: nextPageNumber }))
+        if (status === "authenticated") {
+          dispatch(setCurrentPage({ [filterKey]: nextPageNumber }))
+        }
       }
     }
-  }, [nextPageUrl, employeeListLoading, departmentListLoading, dispatch, pages, filterKey, department, searchTerm])
+  }, [status, nextPageUrl, employeeListLoading, departmentListLoading, dispatch, pages, filterKey, department, searchTerm])
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    const participantIds = selectedParticipants.map(p => p.user__id)
+  const handleSubmit = useCallback(async (e: FormEvent) => {
+    e.preventDefault();
 
-    if ((type === "DIRECT" && participantIds.length !== 1) ||
-      (type === "GROUP" && selectedParticipants.length < 2)) {
-      return
+    if (status !== "authenticated") {
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to create a chat",
+        variant: "destructive",
+      });
+      return;
     }
 
-    setIsCreating(true)
+    const participantIds = selectedParticipants.map((p) => p.user__id);
+
+    if (
+      (type === "DIRECT" && participantIds.length !== 1) ||
+      (type === "GROUP" && selectedParticipants.length < 2)
+    ) {
+      return;
+    }
+
+    setIsCreating(true);
+
     try {
+      let chatResponse;
       if (type === "DIRECT") {
-        const otherParticipant = selectedParticipants[0]
-        await dispatch(createChatRoom({
-          type: "DIRECT",
-          participants: participantIds,
-          otherParticipantName: `${otherParticipant.user__first_name} ${otherParticipant.user__last_name}`
-        })).unwrap()
+        const otherParticipant = selectedParticipants[0];
+        chatResponse = await dispatch(
+          createChatRoom({
+            type: "DIRECT",
+            participants: participantIds,
+            otherParticipantName: `${otherParticipant.user__first_name} ${otherParticipant.user__last_name}`,
+          })
+        ).unwrap();
       } else {
-        await dispatch(createChatRoom({
-          name,
-          type: "GROUP",
-          participants: participantIds
-        })).unwrap()
+        chatResponse = await dispatch(
+          createChatRoom({
+            name,
+            type: "GROUP",
+            participants: participantIds,
+          })
+        ).unwrap();
       }
+
+      const chatRoomId = chatResponse.chatroom.id;
+
+      toast({
+        title: "Success",
+        description: chatResponse.message,
+      });
+
+      router.push(`/dashboard/chat/chat-history/${chatRoomId}`);
     } catch (error: any) {
       toast({
         title: "Error Creating Chat Room",
-        description: error?.message || "Something went wrong while creating the chat room.",
+        description:
+          error?.message ||
+          "Something went wrong while creating the chat room.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsCreating(false)
+      setIsCreating(false);
     }
-  }
-
+  }, [status,
+    selectedParticipants,
+    type,
+    name,
+    dispatch,
+    toast,
+    router,
+    session?.user?.id])
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-background p-4 md:p-8 grid md:grid-cols-2 gap-8">

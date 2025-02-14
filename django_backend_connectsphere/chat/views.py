@@ -100,52 +100,122 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.data)
 
-    def perform_create(self, serializer):
-        chat_type = self.request.data.get('type')
-        participants = set(self.request.data.get('participants', []))
-        user = self.request.user
+    # def perform_create(self, serializer):
+    #     chat_type = self.request.data.get('type')
+    #     participants = set(self.request.data.get('participants', []))
+    #     user = self.request.user
+
+    #     if user.id in participants:
+    #         participants.remove(user.id)
+
+    #     if chat_type == 'DIRECT' and len(participants) != 1:
+    #         raise ValidationError("Direct chats require exactly 2 participants.")
+    #     elif chat_type == 'GROUP' and len(participants) < 2:
+    #         raise ValidationError("Group chats require at least 3 participants.")
+
+    #     participants_hash = None
+    #     other_user_id = None
+    #     if chat_type == 'DIRECT':
+    #         other_user_id = participants.pop()
+    #         participant_ids = sorted([user.id, other_user_id])
+    #         participants_hash = f"{participant_ids[0]}-{participant_ids[1]}"
+
+    #         existing_chat = ChatRoom.objects.filter(
+    #             participants_hash=participants_hash,
+    #             is_deleted=True
+    #         ).first()
+
+    #         if existing_chat:
+    #             existing_chat.is_deleted = False
+    #             existing_chat.last_restore_at = timezone.now()
+    #             existing_chat.is_restored = True
+    #             existing_chat.save()
+    #             return
+
+    #     try:
+    #         chatroom = serializer.save(
+    #             created_by=user,
+    #             participants_hash=participants_hash,
+    #             name=None if chat_type == 'DIRECT' else serializer.validated_data.get('name')
+    #         )
+    #         if chat_type == 'DIRECT':
+    #             chatroom.participants.add(user, other_user_id)
+    #         else:
+    #             chatroom.participants.add(user, *participants)
+    #     except IntegrityError as e:
+    #         if 'unique_direct_chat' in str(e):
+    #             raise ValidationError("A direct chat already exists between these users.")
+    #         raise
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        chat_type = request.data.get('type')
+        participants = set(request.data.get('participants', []))
+        user = request.user
 
         if user.id in participants:
             participants.remove(user.id)
 
-        if chat_type == 'DIRECT' and len(participants) != 1:
-            raise ValidationError("Direct chats require exactly 2 participants.")
-        elif chat_type == 'GROUP' and len(participants) < 2:
-            raise ValidationError("Group chats require at least 3 participants.")
-
-        participants_hash = None
-        other_user_id = None
         if chat_type == 'DIRECT':
+            if len(participants) != 1:
+                return Response(
+                    {'error': 'Direct chats require exactly 2 participants.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             other_user_id = participants.pop()
             participant_ids = sorted([user.id, other_user_id])
             participants_hash = f"{participant_ids[0]}-{participant_ids[1]}"
 
-            existing_chat = ChatRoom.objects.filter(
-                participants_hash=participants_hash,
-                is_deleted=True
-            ).first()
-
+            existing_chat = ChatRoom.objects.filter(participants_hash=participants_hash).first()
             if existing_chat:
-                existing_chat.is_deleted = False
-                existing_chat.last_restore_at = timezone.now()
-                existing_chat.is_restored = True
-                existing_chat.save()
-                return
+                if existing_chat.is_deleted:
+                    existing_chat.is_deleted = False
+                    existing_chat.last_restore_at = timezone.now()
+                    existing_chat.is_restored = True
+                    existing_chat.save()
+                    data = self.get_serializer(existing_chat).data
+                    data['message'] = 'Chatroom restored successfully.'
+                    return Response(data, status=status.HTTP_200_OK)
+                else:
+                    data = self.get_serializer(existing_chat).data
+                    data['message'] = 'Chatroom already exists.'
+                    return Response(data, status=status.HTTP_200_OK)
+            
+            serializer.validated_data['name'] = None 
+            chatroom = serializer.save(created_by=user, participants_hash=participants_hash)
+            chatroom.participants.add(user, other_user_id)
+            data = self.get_serializer(chatroom).data
+            return Response(data, status=status.HTTP_201_CREATED)
 
-        try:
+        elif chat_type == 'GROUP':
+            group_name = serializer.validated_data.get('name')
+            if not group_name or not group_name.strip():
+                return Response(
+                    {'error': 'Group chats require a valid name.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if len(participants) < 2:
+                return Response(
+                    {'error': 'Group chats require at least 3 participants.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             chatroom = serializer.save(
                 created_by=user,
-                participants_hash=participants_hash,
-                name=None if chat_type == 'DIRECT' else serializer.validated_data.get('name')
+                participants_hash=None,  
+                name=serializer.validated_data.get('name')
             )
-            if chat_type == 'DIRECT':
-                chatroom.participants.add(user, other_user_id)
-            else:
-                chatroom.participants.add(user, *participants)
-        except IntegrityError as e:
-            if 'unique_direct_chat' in str(e):
-                raise ValidationError("A direct chat already exists between these users.")
-            raise
+            chatroom.participants.add(user, *participants)
+            data = self.get_serializer(chatroom).data
+            return Response(data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(
+                {'error': 'Invalid chat type.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
     @action(detail=False, methods=['post'])
@@ -292,7 +362,8 @@ class MessageViewSet(viewsets.ModelViewSet):
         if not ChatRoom.objects.filter(id=room_id, participants=self.request.user).exists():
             raise PermissionDenied(detail="You are not a participant of this room.")
 
-        serializer.save(sender=self.request.user, is_sent=True)
+        message = serializer.save(sender=self.request.user, is_sent=True)
+        message.read_by.add(self.request.user)
 
     def update(self, request, *args, **kwargs):
         message_id = kwargs.get('pk')

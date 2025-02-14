@@ -13,7 +13,6 @@ class ChatRoomSerializer(serializers.ModelSerializer):
     participants = UserSerializer(many=True, read_only=True) 
     last_message = serializers.SerializerMethodField() 
     unread_messages_count = serializers.IntegerField(read_only=True)
-    name = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatRoom
@@ -32,19 +31,17 @@ class ChatRoomSerializer(serializers.ModelSerializer):
             'last_restore_at': {'read_only': True},
         }
 
-    def get_name(self, obj):
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
         request = self.context.get('request')
-        if not request or not request.user.is_authenticated:
-            return obj.name  
-
-        if obj.type == 'DIRECT':
-            other_user = next(
-                (u for u in obj.participants.all() if u != request.user),
-                None
-            )
-            return f"{other_user.first_name} {other_user.last_name}" if other_user else "Deleted User"
-
-        return obj.name
+        if request and request.user.is_authenticated:
+            if instance.type == 'DIRECT':
+                other_user = next(
+                    (u for u in instance.participants.all() if u != request.user),
+                    None
+                )
+                representation['name'] = f"{other_user.first_name} {other_user.last_name}" if other_user else "Deleted User"
+        return representation
 
     def get_last_message(self, obj):
 

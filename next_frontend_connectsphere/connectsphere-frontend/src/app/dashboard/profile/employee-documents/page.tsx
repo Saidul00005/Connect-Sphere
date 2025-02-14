@@ -1,7 +1,6 @@
 "use client"
 import { useEffect } from "react"
 import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
 import { useAppSelector, useAppDispatch } from "@/app/redux/store"
 import { fetchProfile } from "@/app/redux/slices/profileSlice"
 import {
@@ -16,13 +15,7 @@ import { FileText, Download, Eye } from "lucide-react"
 
 
 export default function EmployeeDocuments() {
-  const router = useRouter()
-  const { data: session, status } = useSession({
-    required: true,
-    onUnauthenticated() {
-      router.push("/")
-    },
-  })
+  const { status } = useSession()
 
   const dispatch = useAppDispatch()
   const { details, loading: employeeProfileLoading, error } = useAppSelector(

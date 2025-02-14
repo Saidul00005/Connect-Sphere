@@ -22,6 +22,12 @@ interface CreateChatRoomParams {
   otherParticipantName?: string;
 }
 
+export interface CreateChatRoomResponse {
+  success: boolean;
+  message: string;
+  chatroom: ChatRoom;
+}
+
 export const fetchChatRooms = createAsyncThunk<
   ChatRoomResponse,
   FetchChatRoomsParams,
@@ -50,7 +56,7 @@ export const fetchChatRooms = createAsyncThunk<
 );
 
 export const createChatRoom = createAsyncThunk<
-  ChatRoom,
+  CreateChatRoomResponse,
   CreateChatRoomParams,
   { rejectValue: string }
 >(
@@ -60,10 +66,10 @@ export const createChatRoom = createAsyncThunk<
       const requestBody = {
         type: chatRoomData.type,
         participants: chatRoomData.participants,
-        name: chatRoomData.type === 'DIRECT' ? null : chatRoomData.name
+        name: chatRoomData.type === "DIRECT" ? null : chatRoomData.name,
       };
 
-      const response = await axios.post<ChatRoom>(
+      const response = await axios.post<CreateChatRoomResponse>(
         "/api/chat/rooms/",
         requestBody
       );
@@ -75,10 +81,13 @@ export const createChatRoom = createAsyncThunk<
         };
       }
 
+
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       if (axios.isAxiosError(error)) {
-        return rejectWithValue(error.response?.data?.error || "Failed to create chat room");
+        return rejectWithValue(
+          error.response?.data?.error || "Failed to create chat room"
+        );
       }
       return rejectWithValue("Failed to create chat room");
     }
@@ -155,7 +164,7 @@ const chatRoomsSliceForUser = createSlice({
       })
       .addCase(createChatRoom.fulfilled, (state, action) => {
         state.loading = false;
-        state.allRooms.unshift(action.payload);
+        state.allRooms.unshift(action.payload.chatroom);
       })
       .addCase(createChatRoom.rejected, (state, action) => {
         state.loading = false;
@@ -166,7 +175,12 @@ const chatRoomsSliceForUser = createSlice({
         state.error = null;
       })
       .addCase(deleteChatRoom.fulfilled, (state, action) => {
+        state.loading = false;
         state.allRooms = state.allRooms.filter(room => room.id !== action.payload);
+      })
+      .addCase(deleteChatRoom.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || "Failed to delete chat room";
       });
   },
 });

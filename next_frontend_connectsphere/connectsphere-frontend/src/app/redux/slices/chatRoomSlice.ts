@@ -105,10 +105,6 @@ const singleChatRoomSlice = createSlice({
           (action.payload as { message: string })?.message ||
           'Failed to fetch chat room details';
       })
-      .addCase(addParticipants.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
       .addCase(addParticipants.fulfilled, (state, action) => {
         const { roomId, participants, temporary } = action.payload;
 
@@ -124,13 +120,7 @@ const singleChatRoomSlice = createSlice({
             room.participants = [...room.participants, ...newParticipants];
           }
         }
-
-        state.loading = false;
       })
-      .addCase(addParticipants.rejected, (state, action) => {
-        state.loading = false;
-        state.error = (action.payload as { message: string })?.message || 'Failed to add participants';
-      });
   },
 });
 

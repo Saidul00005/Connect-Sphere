@@ -24,16 +24,13 @@ import { AlertCircle } from "lucide-react";
 import type { Employee } from "@/app/dashboard/collegues/types/employeeListTypes";
 import EmployeeProfileForUser from "./EmployeeProfileForUser"
 import { fetchDepartments } from "@/app/redux/slices/DepartmentListSliceForUser";
+import { useToast } from "@/hooks/use-toast";
+import { createChatRoom } from "@/app/redux/slices/chatRoomsSlice";
 
 
 export default function EmployeeList() {
   const router = useRouter();
-  const { data: session, status } = useSession({
-    required: true,
-    onUnauthenticated() {
-      router.push("/");
-    },
-  });
+  const { data: session, status } = useSession();
 
   const dispatch = useAppDispatch();
   const {
@@ -53,6 +50,8 @@ export default function EmployeeList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [department, setDepartment] = useState("");
   const [selectedEmployeeUserId, setSelectedEmployeeUserId] = useState<number | null>(null);
+  const [creatingChat, setCreatingChat] = useState<number | null>(null);
+  const { toast } = useToast();
 
   const filterKey = getFilterKey(department, searchTerm, "employeeList");
   const currentPageNumber = parseInt(currentPage[filterKey] || "1");
@@ -84,19 +83,24 @@ export default function EmployeeList() {
         ) || "1";
 
       if (!pages[filterKey]?.[prevPageNumber]) {
-        dispatch(
-          fetchEmployees({
-            pageUrl: previousPageUrl,
-            department,
-            search: searchTerm,
-            component: "employeeList"
-          })
-        );
+        if (status === "authenticated") {
+          dispatch(
+            fetchEmployees({
+              pageUrl: previousPageUrl,
+              department,
+              search: searchTerm,
+              component: "employeeList"
+            })
+          );
+        }
       } else {
-        dispatch(setCurrentPage({ [filterKey]: prevPageNumber }));
+        if (status === "authenticated") {
+          dispatch(setCurrentPage({ [filterKey]: prevPageNumber }));
+        }
       }
     }
   }, [
+    status,
     previousPageUrl,
     employeeListLoading,
     dispatch,
@@ -113,19 +117,24 @@ export default function EmployeeList() {
         new URL(nextPageUrl, window.location.origin).searchParams.get("page") ||
         "1";
       if (!pages[filterKey]?.[nextPageNumber]) {
-        dispatch(
-          fetchEmployees({
-            pageUrl: nextPageUrl,
-            department,
-            search: searchTerm,
-            component: "employeeList"
-          })
-        );
+        if (status === "authenticated") {
+          dispatch(
+            fetchEmployees({
+              pageUrl: nextPageUrl,
+              department,
+              search: searchTerm,
+              component: "employeeList"
+            })
+          );
+        }
       } else {
-        dispatch(setCurrentPage({ [filterKey]: nextPageNumber }));
+        if (status === "authenticated") {
+          dispatch(setCurrentPage({ [filterKey]: nextPageNumber }));
+        }
       }
     }
   }, [
+    status,
     nextPageUrl,
     employeeListLoading,
     dispatch,
@@ -135,27 +144,75 @@ export default function EmployeeList() {
     filterKey,
   ]);
 
-  const handleSearch = () => {
+  const handleSearch = useCallback(() => {
     if (searchInputRef.current) {
       setSearchTerm(searchInputRef.current.value);
     }
-  };
+  }, []);
 
-  const handleSort = (value: string) => {
+  const handleSort = useCallback((value: string) => {
     setDepartment(value);
-    dispatch(resetEmployees());
-    dispatch(fetchEmployees({ pageUrl: null, department: value, search: searchTerm, component: "employeeList" }));
-  };
+    if (status === "authenticated") {
+      dispatch(resetEmployees());
+      dispatch(fetchEmployees({
+        pageUrl: null,
+        department: value,
+        search: searchTerm,
+        component: "employeeList"
+      }));
+    }
+  }, [status, searchTerm, dispatch]);
 
-  const handleClearFilters = () => {
+  const handleClearFilters = useCallback(() => {
     setDepartment("");
     setSearchTerm("");
     if (searchInputRef.current) {
       searchInputRef.current.value = "";
     }
-    dispatch(resetEmployees());
-    dispatch(fetchEmployees({ pageUrl: null, department: "", search: "", component: "employeeList" }));
-  };
+    if (status === "authenticated") {
+      dispatch(resetEmployees());
+      dispatch(fetchEmployees({ pageUrl: null, department: "", search: "", component: "employeeList" }));
+    }
+  }, [status, dispatch]);
+
+  const handleChat = useCallback(async (employee: Employee) => {
+    if (status !== "authenticated" || !session?.user?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to start a chat",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCreatingChat(employee.id);
+
+    try {
+      const chatResponse = await dispatch(createChatRoom({
+        type: "DIRECT",
+        participants: [Number(session.user.id), employee.user__id],
+        otherParticipantName: `${employee.user__first_name} ${employee.user__last_name}`
+      })).unwrap();
+
+
+      const chatRoomId = chatResponse.chatroom.id;
+
+      toast({
+        title: "Success",
+        description: chatResponse.message,
+      });
+
+      router.push(`/dashboard/chat/chat-history/${chatRoomId}`);
+    } catch (error: any) {
+      toast({
+        title: "Error Creating Chat",
+        description: error?.message || "Something went wrong while creating the chat.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingChat(null);
+    }
+  }, [status, session?.user?.id, dispatch, toast, router])
 
   const isLoading = (status === "loading" || employeeListLoading) && !employeeListError && !departmentListError
 
@@ -257,9 +314,10 @@ export default function EmployeeList() {
                     {!isCurrentUser && (
                       <Button
                         className="flex-1 sm:flex-none"
-                        onClick={() => console.log("Chat with:", employee.id)}
+                        onClick={() => handleChat(employee)}
+                        disabled={creatingChat === employee.id}
                       >
-                        Chat
+                        {creatingChat === employee.id ? "Wait..." : "Chat"}
                       </Button>
                     )}
                   </div>
