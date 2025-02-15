@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Department, Employee, EmployeeDocument
 from accounts.models import User
+from django.db.models import F
 
 class UserSerializer(serializers.ModelSerializer):
     role = serializers.CharField(source='role.name')
@@ -73,15 +74,28 @@ class EmployeeSerializer(serializers.ModelSerializer):
         role = getattr(obj.user, 'role', None)
         return role.name if role else "No role assigned"
 
+    # def create(self, validated_data):
+    #     department = validated_data.get('department')
+
+    #     with transaction.atomic():
+    #         dept_code = department.name.ljust(3)[:3].upper()
+    #         department.last_employee_id += 1
+    #         department.save() 
+    #         validated_data['employee_id'] = f"{dept_code}{department.last_employee_id:04d}"
+        
+    #         return super().create(validated_data)
+
     def create(self, validated_data):
         department = validated_data.get('department')
 
         with transaction.atomic():
+            department.refresh_from_db()
+            department.last_employee_id = F('last_employee_id') + 1
+            department.save(update_fields=['last_employee_id'])  
+
             dept_code = department.name.ljust(3)[:3].upper()
-            department.last_employee_id += 1
-            department.save() 
             validated_data['employee_id'] = f"{dept_code}{department.last_employee_id:04d}"
-        
+
             return super().create(validated_data)
 
 

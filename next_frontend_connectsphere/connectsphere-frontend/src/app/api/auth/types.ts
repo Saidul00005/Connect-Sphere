@@ -1,4 +1,3 @@
-// types.ts
 import { DefaultSession } from "next-auth";
 
 export interface User {

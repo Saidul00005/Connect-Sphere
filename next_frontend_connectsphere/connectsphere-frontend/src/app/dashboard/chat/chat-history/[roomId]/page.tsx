@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import DetailsPage from "../components/EmployeeDetailsForUser"
 
 interface ChatRoomPageProps {
   params: Promise<{ roomId: string }>
@@ -48,6 +49,7 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   const [messageToDelete, setMessageToDelete] = useState<number | null>(null)
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -229,28 +231,35 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80">
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
                     {singleChatRoom?.participants.map((participant) => {
                       const isCurrentUser = participant.id === Number(session?.user?.id)
                       const isAdmin = participant.id === singleChatRoom?.created_by.id
                       return (
-                        <div key={participant.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted">
-                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            {participant.first_name[0]}
-                            {participant.last_name[0]}
+                        <Button
+                          key={participant.id}
+                          variant="ghost"
+                          className="w-full h-auto justify-start p-2 rounded-lg hover:bg-muted"
+                          onClick={() => setSelectedUserId(participant.id)}
+                        >
+                          <div className="flex items-center gap-2 w-full">
+                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                              {participant.first_name[0]}
+                              {participant.last_name[0]}
+                            </div>
+                            <div className="flex flex-col items-start">
+                              <p className="font-medium text-sm">
+                                {participant.first_name} {participant.last_name}{" "}
+                                {isCurrentUser && <span className="italic">(You)</span>}
+                              </p>
+                              {isAdmin && (
+                                <Badge variant="secondary" className="text-xs w-fit">
+                                  Admin
+                                </Badge>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex flex-col">
-                            <p className="font-medium text-sm">
-                              {participant.first_name} {participant.last_name}{" "}
-                              {isCurrentUser && <span className="italic">(You)</span>}
-                            </p>
-                            {isAdmin && (
-                              <Badge variant="secondary" className="text-xs w-fit">
-                                Admin
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
+                        </Button>
                       )
                     })}
                   </div>
@@ -477,6 +486,25 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
       <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4">
         <MessageInput roomId={roomId} onMessageSent={scrollToBottom} />
       </div>
+
+      {selectedUserId && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50">
+          <div className="fixed inset-x-4 top-[50%] translate-y-[-50%] sm:inset-x-auto sm:left-[50%] sm:translate-x-[-50%] sm:max-w-2xl h-[90vh] bg-background rounded-lg shadow-lg overflow-hidden">
+            <div className="h-full overflow-y-auto p-4">
+              <DetailsPage userId={selectedUserId} />
+              <div className="sticky bottom-0 pt-4 bg-background">
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => setSelectedUserId(null)}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -5,6 +5,7 @@ import chatRoomsSliceForUser from '@/app/redux/slices/chatRoomsSlice';
 import userProfileReducer from '@/app/redux/slices/userProfileSlice';
 import employeeListForUser from '@/app/redux/slices/employeeListForUserSlice';
 import employeeProfileSliceForUser from '@/app/redux/slices/employeeProfileSliceForUser';
+import employeeDetailsSliceForUser from '@/app/redux/slices/employeeDetailsSliceForUser';
 import DepartmentListSliceForUser from '@/app/redux/slices/DepartmentListSliceForUser';
 import chatMessagesSliceForUser from '@/app/redux/slices/chatMessagesSlice';
 import createChatRoomFormForUser from '@/app/redux/slices/createChatRoomSlice';
@@ -17,6 +18,7 @@ export const store = configureStore({
     userProfile: userProfileReducer,
     employees: employeeListForUser,
     employee: employeeProfileSliceForUser,
+    employeePublicDetails: employeeDetailsSliceForUser,
     departments: DepartmentListSliceForUser,
     chatMessages: chatMessagesSliceForUser,
     createChatRoomForm: createChatRoomFormForUser,

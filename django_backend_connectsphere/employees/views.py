@@ -149,6 +149,32 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(employee)
         return Response(serializer.data)
 
+    @action(detail=False,methods=['get'])
+    def public_details_of_employee_by_user_id(self, request, user_id=None):
+        
+        if not hasattr(request.user, 'role') or request.user.role is None:
+            raise PermissionDenied("You do not have permission to view this employee's details.")
+
+        try:
+            employee = Employee.objects.get(user__id=user_id)
+        except Employee.DoesNotExist:
+            raise NotFound("Employee not found for this user id.")
+
+        public_data = {
+            "employee_id": employee.employee_id,
+            "full_name": employee.full_name,
+            "designation": employee.designation,
+            "department": employee.department.name if employee.department else None,
+            "performance_rating": employee.performance_rating,
+            "reporting_manager_name": employee.reporting_manager_name,
+            "contact_number": employee.contact_number,
+            "emergency_contact": employee.emergency_contact,
+            "role_name": employee.role_name,
+            "skills": employee.skills,
+            "joining_date": employee.joining_date
+        }
+        return Response(public_data, status=status.HTTP_200_OK)
+
     @action(detail=False, methods=['get'])
     def retrieve_by_user_id(self, request, user_id=None):
         try:

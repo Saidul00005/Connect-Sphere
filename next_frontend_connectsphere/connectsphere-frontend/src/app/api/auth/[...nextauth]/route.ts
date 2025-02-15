@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { signOut } from "next-auth/react";
+// import { signOut } from "next-auth/react";
 import { User, SessionExtended, JWT } from "@/app/api/auth/types";
 import type { NextAuthOptions } from "next-auth"
 import axios from "axios";
@@ -91,43 +91,53 @@ export const authOptions: NextAuthOptions = {
       }
 
       // Handle token expiration and refresh
-      if (token.accessTokenExpiry && typeof token.accessTokenExpiry === "number") {
-        if (Date.now() >= token.accessTokenExpiry - 5 * 60 * 1000) {
-          try {
-            const response = await axios.post(
-              `${process.env.BACKEND_URL}/api/accounts/pytoken/refresh/`,
-              { refresh: token.refreshToken },
-              {
-                headers: {
-                  "Content-Type": "application/json",
-                  "X-Api-Key": process.env.BACKEND_API_KEY
-                },
-              }
-            );
+      // if (token.accessTokenExpiry && typeof token.accessTokenExpiry === "number") {
+      // token.isRefreshing = true;
+      // const isTokenExpired =
+      //   typeof token.accessTokenExpiry === "number" &&
+      //   Date.now() >= token.accessTokenExpiry;
 
-            token.token = response.data.access;
-            token.refreshToken = response.data.refresh
-            token.accessTokenExpiry = Date.now() + 60 * 60 * 1000;
-          } catch (error) {
-            console.error("Token refresh error:");
+      const isTokenNeartoExpiry =
+        typeof token.accessTokenExpiry === "number" &&
+        Date.now() >= token.accessTokenExpiry - 10 * 60 * 1000;
 
-            let errorMessage = "500: Failed to refresh token";
-            if (axios.isAxiosError(error)) {
-              const status = error.response?.status || 500;
-              const detail = error.response?.data?.detail
-                || error.response?.data?.error
-                || error.message
-                || "Unknown refresh error";
-              errorMessage = `${status}: ${detail}`;
-              console.error(`Axios error - Status: ${status}, Detail: ${detail}`);
-            } else if (error instanceof Error) {
-              errorMessage = `500: ${error.message}`;
-              console.error("Generic error:", error.message);
+      if (isTokenNeartoExpiry && !token.isRefreshing) {
+        try {
+          token.isRefreshing = true;
+          const response = await axios.post(
+            `${process.env.BACKEND_URL}/api/accounts/pytoken/refresh/`,
+            { refresh: token.refreshToken },
+            {
+              headers: {
+                "Content-Type": "application/json",
+                "X-Api-Key": process.env.BACKEND_API_KEY
+              },
             }
-            token = {} as JWT;
-            await signOut({ redirect: false });
-            throw new Error(errorMessage);
+          );
+
+          token.token = response.data.access;
+          token.refreshToken = response.data.refresh
+          token.accessTokenExpiry = Date.now() + 60 * 60 * 1000;
+        } catch (error) {
+          console.error("Token refresh error:");
+
+          let errorMessage = "500: Failed to refresh token";
+          if (axios.isAxiosError(error)) {
+            const status = error.response?.status || 500;
+            const detail = error.response?.data?.detail
+              || error.response?.data?.error
+              || error.message
+              || "Unknown refresh error";
+            errorMessage = `${status}: ${detail}`;
+            console.error(`Axios error - Status: ${status}, Detail: ${detail}`);
+          } else if (error instanceof Error) {
+            errorMessage = `500: ${error.message}`;
+            console.error("Generic error:", error.message);
           }
+          token = {} as JWT;
+          throw new Error(errorMessage);
+        } finally {
+          token.isRefreshing = false;
         }
       }
       return token;
