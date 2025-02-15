@@ -26,9 +26,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         fields = ['email', 'password', 'first_name', 'last_name']
 
     def validate_password(self, value):
-        user = self.instance or User(**self.initial_data)
+        # user = self.instance or User(**self.initial_data)
         try:
-            validate_password(value, user=user)
+            validate_password(value)
         except ValidationError as e:
             raise serializers.ValidationError(str(e))
         return value
@@ -42,12 +42,13 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
-        try:
-            user = User.objects.get(email=attrs['email'])
-        except User.DoesNotExist:
-            raise AuthenticationFailed('User does not exist.')
+        # try:
+        #     user = User.objects.get(email=attrs['email'])
+        # except User.DoesNotExist:
+        #     raise AuthenticationFailed('User does not exist.')
 
         data = super().validate(attrs)
+        user = self.user
 
         if not user.is_approved:
             raise AuthenticationFailed('User account is not approved yet.')
@@ -64,7 +65,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'last_name': user.last_name,
             'role': user.role.name,
             'is_active': user.is_active,
-            'profile_picture': user.profile_picture.url if user.profile_picture else None, 
+            # 'profile_picture': user.profile_picture.url if user.profile_picture else None, 
+            'profile_picture': user.profile_picture.url if hasattr(user, "profile_picture") and user.profile_picture else None
         }
 
         return data

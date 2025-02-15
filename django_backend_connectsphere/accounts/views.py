@@ -14,14 +14,14 @@ from django.db import models
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.filter(is_deleted=False)
+    queryset = User.objects.filter(is_deleted=False).select_related("role")
     serializer_class = UserSerializer
     permission_classes = [HasAPIKey,permissions.IsAuthenticated]
     pagination_class = CustomPagination
     throttle_classes = [UserRateThrottle]
 
     def get_object_with_deleted(self):
-        return User.objects.get(pk=self.kwargs["pk"])  
+        return User.objects.select_related("role").get(pk=self.kwargs["pk"])  
 
 
     def retrieve(self, request, *args, **kwargs):
@@ -144,7 +144,7 @@ class UserViewSet(viewsets.ModelViewSet):
         is_user_approved = request.user.is_approved
 
         if user_role == "CEO":
-            users = self.queryset.filter(is_approved=False).order_by('id')
+            users = self.queryset.filter(is_approved=False).order_by('id').select_related("role")
         
         elif user_role == "MANAGER":
             if not is_user_approved:
@@ -181,7 +181,7 @@ class UserViewSet(viewsets.ModelViewSet):
         query = request.query_params.get('q', '')
         role = request.query_params.get('role', '')
         
-        users = self.queryset.order_by('id') 
+        users = self.queryset.order_by('id').select_related("role")
         if query:
             users = users.filter(
                 models.Q(first_name__icontains=query) |
