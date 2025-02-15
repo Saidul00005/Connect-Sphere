@@ -68,12 +68,25 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 
         search_query = request.GET.get('search', None)
 
-        filters = Q()
-        if search_query:
-            filters &= Q(name__icontains=search_query)
+        # filters = Q()
+        # if search_query:
+        #     filters &= Q(name__icontains=search_query)
 
-        if filters:
-            queryset = queryset.filter(filters).order_by('last_modified_at','id')
+        # if filters:
+        #     queryset = queryset.filter(filters).order_by('last_modified_at','id')
+        # else:
+        #     queryset = queryset.order_by('last_modified_at','id')
+
+        if search_query:
+            user = request.user
+            direct_filter = Q(type='DIRECT') & (
+                Q(participants__first_name__icontains=search_query) |
+                Q(participants__last_name__icontains=search_query)
+            ) & ~Q(participants__id=user.id)  
+            
+            group_filter = Q(type='GROUP') & Q(name__icontains=search_query)
+            
+            queryset = queryset.filter(direct_filter | group_filter).distinct().order_by('last_modified_at','id')
         else:
             queryset = queryset.order_by('last_modified_at','id')
 
@@ -99,53 +112,6 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(chatroom)
 
         return Response(serializer.data)
-
-    # def perform_create(self, serializer):
-    #     chat_type = self.request.data.get('type')
-    #     participants = set(self.request.data.get('participants', []))
-    #     user = self.request.user
-
-    #     if user.id in participants:
-    #         participants.remove(user.id)
-
-    #     if chat_type == 'DIRECT' and len(participants) != 1:
-    #         raise ValidationError("Direct chats require exactly 2 participants.")
-    #     elif chat_type == 'GROUP' and len(participants) < 2:
-    #         raise ValidationError("Group chats require at least 3 participants.")
-
-    #     participants_hash = None
-    #     other_user_id = None
-    #     if chat_type == 'DIRECT':
-    #         other_user_id = participants.pop()
-    #         participant_ids = sorted([user.id, other_user_id])
-    #         participants_hash = f"{participant_ids[0]}-{participant_ids[1]}"
-
-    #         existing_chat = ChatRoom.objects.filter(
-    #             participants_hash=participants_hash,
-    #             is_deleted=True
-    #         ).first()
-
-    #         if existing_chat:
-    #             existing_chat.is_deleted = False
-    #             existing_chat.last_restore_at = timezone.now()
-    #             existing_chat.is_restored = True
-    #             existing_chat.save()
-    #             return
-
-    #     try:
-    #         chatroom = serializer.save(
-    #             created_by=user,
-    #             participants_hash=participants_hash,
-    #             name=None if chat_type == 'DIRECT' else serializer.validated_data.get('name')
-    #         )
-    #         if chat_type == 'DIRECT':
-    #             chatroom.participants.add(user, other_user_id)
-    #         else:
-    #             chatroom.participants.add(user, *participants)
-    #     except IntegrityError as e:
-    #         if 'unique_direct_chat' in str(e):
-    #             raise ValidationError("A direct chat already exists between these users.")
-    #         raise
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

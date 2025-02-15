@@ -92,7 +92,7 @@ export const authOptions: NextAuthOptions = {
 
       // Handle token expiration and refresh
       if (token.accessTokenExpiry && typeof token.accessTokenExpiry === "number") {
-        if (Date.now() === token.accessTokenExpiry) {
+        if (Date.now() >= token.accessTokenExpiry - 5 * 60 * 1000) {
           try {
             const response = await axios.post(
               `${process.env.BACKEND_URL}/api/accounts/pytoken/refresh/`,
@@ -106,7 +106,7 @@ export const authOptions: NextAuthOptions = {
             );
 
             token.token = response.data.access;
-            token.refreshToken = response.data.refresh || token.refreshToken;
+            token.refreshToken = response.data.refresh
             token.accessTokenExpiry = Date.now() + 60 * 60 * 1000;
           } catch (error) {
             console.error("Token refresh error:");
