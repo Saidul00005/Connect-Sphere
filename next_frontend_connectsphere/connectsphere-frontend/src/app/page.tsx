@@ -9,7 +9,7 @@ import Footer from "@/components/custom/Footer"
 import Header from "@/components/custom/Header"
 
 export default function Home() {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const router = useRouter()
 
   useEffect(() => {

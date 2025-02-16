@@ -4,8 +4,17 @@ import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { User, Users, FileText } from "lucide-react"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 
 export default function ProfilePage() {
+  const router = useRouter()
+  const { status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      router.push("/")
+    },
+  })
   return (
     <div className="min-h-screen w-full bg-muted/40">
       <div className="mx-auto max-w-4xl px-4 py-12">

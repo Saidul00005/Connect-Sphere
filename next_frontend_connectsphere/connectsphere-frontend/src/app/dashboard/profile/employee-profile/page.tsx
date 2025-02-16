@@ -10,9 +10,16 @@ import { Separator } from "@/components/ui/separator"
 import { Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 
 export default function EmployeeProfile() {
-  const { status } = useSession()
+  const router = useRouter()
+  const { status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      router.push("/")
+    },
+  })
 
   const dispatch = useAppDispatch()
   const { details, loading: employeeProfileLoading, error } = useAppSelector(

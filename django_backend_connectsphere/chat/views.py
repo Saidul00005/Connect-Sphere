@@ -328,7 +328,7 @@ class MessageViewSet(viewsets.ModelViewSet):
         if not ChatRoom.objects.filter(id=room_id, participants=self.request.user).exists():
             raise PermissionDenied(detail="You are not a participant of this room.")
 
-        message = serializer.save(sender=self.request.user, is_sent=True)
+        message = serializer.save(sender=self.request.user, is_sent=True, is_delivered=True)
         message.read_by.add(self.request.user)
 
     def update(self, request, *args, **kwargs):

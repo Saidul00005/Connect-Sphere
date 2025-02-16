@@ -3,7 +3,7 @@ import axios from 'axios'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
 
@@ -11,8 +11,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get("userId");
+    const { userId } = await req.json()
 
     if (!userId) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 })

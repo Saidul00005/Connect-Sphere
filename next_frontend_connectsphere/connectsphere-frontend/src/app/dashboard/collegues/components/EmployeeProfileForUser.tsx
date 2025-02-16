@@ -11,13 +11,20 @@ import { useAppSelector, useAppDispatch } from "@/app/redux/store"
 import { fetchEmployeeDetails } from "@/app/redux/slices/employeeProfileSliceForUser"
 import { Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
 
 interface ProfilePageProps {
   userId: number
 }
 
 export default function ProfilePage({ userId }: ProfilePageProps) {
-  const { status } = useSession()
+  const router = useRouter()
+  const { status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      router.push("/")
+    },
+  })
 
   const dispatch = useAppDispatch()
   const { profiles, loading: employeeProfileLoading, error } = useAppSelector((state) => state.employee)

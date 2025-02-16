@@ -31,7 +31,12 @@ import { useToast } from "@/hooks/use-toast"
 export default function ChatHistory() {
   const router = useRouter()
   const { toast } = useToast()
-  const { data: session, status } = useSession()
+  const { data: session, status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      router.push("/")
+    },
+  })
   const dispatch = useAppDispatch()
   const {
     allRooms,

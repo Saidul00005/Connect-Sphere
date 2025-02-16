@@ -12,10 +12,17 @@ import {
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FileText, Download, Eye } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 
 export default function EmployeeDocuments() {
-  const { status } = useSession()
+  const router = useRouter()
+  const { status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      router.push("/")
+    },
+  })
 
   const dispatch = useAppDispatch()
   const { details, loading: employeeProfileLoading, error } = useAppSelector(

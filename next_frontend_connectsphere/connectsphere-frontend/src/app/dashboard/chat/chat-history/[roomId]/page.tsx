@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import DetailsPage from "../components/EmployeeDetailsForUser"
+import EmployeeDetailsForUsers from "../components/EmployeeDetailsForUsers"
 
 interface ChatRoomPageProps {
   params: Promise<{ roomId: string }>
@@ -35,9 +35,15 @@ interface ChatRoomPageProps {
 export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   const { roomId } = use(params)
   const router = useRouter()
+  const { data: session, status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      router.push("/")
+    },
+  })
   const dispatch = useAppDispatch()
   const { toast } = useToast()
-  const { data: session, status } = useSession()
+
 
   const { allMessages, nextCursor, loading, error } = useAppSelector((state) => state.chatMessages)
   const singleChatRoom = useAppSelector((state) => state.singleChatRoom.rooms[Number(roomId)])
@@ -491,7 +497,7 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50">
           <div className="fixed inset-x-4 top-[50%] translate-y-[-50%] sm:inset-x-auto sm:left-[50%] sm:translate-x-[-50%] sm:max-w-2xl h-[90vh] bg-background rounded-lg shadow-lg overflow-hidden">
             <div className="h-full overflow-y-auto p-4">
-              <DetailsPage userId={selectedUserId} />
+              <EmployeeDetailsForUsers userId={selectedUserId} />
               <div className="sticky bottom-0 pt-4 bg-background">
                 <Button
                   className="w-full"

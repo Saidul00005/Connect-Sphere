@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { SendHorizontal, Loader2 } from "lucide-react"
 import { useState, useCallback } from "react"
 import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 
 interface MessageFormData {
   message: string
@@ -19,7 +20,13 @@ interface MessageInputProps {
 }
 
 const MessageInput = ({ roomId, onMessageSent }: MessageInputProps) => {
-  const { status } = useSession()
+  const router = useRouter()
+  const { status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      router.push("/")
+    },
+  })
   const form = useForm<MessageFormData>({
     defaultValues: { message: "" },
   });

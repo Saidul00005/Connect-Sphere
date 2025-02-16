@@ -35,7 +35,7 @@ export const authOptions: NextAuthOptions = {
           );
 
           const userResponse = response.data;
-          // console.log(userResponse)
+          console.log(userResponse)
 
           if (!userResponse.access || !userResponse.refresh || !userResponse.user) {
             throw new Error("Invalid response from backend: Missing user, access token, or refresh token.");
@@ -87,57 +87,56 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.token = user.token;
         token.refreshToken = user.refreshToken;
-        token.accessTokenExpiry = Date.now() + 60 * 60 * 1000; // Set expiry (60 minutes)
+        token.accessTokenExpiry = Date.now() + 45 * 60 * 1000; // Set expiry (45 minutes)
       }
 
-      // Handle token expiration and refresh
-      // if (token.accessTokenExpiry && typeof token.accessTokenExpiry === "number") {
-      // token.isRefreshing = true;
       // const isTokenExpired =
       //   typeof token.accessTokenExpiry === "number" &&
       //   Date.now() >= token.accessTokenExpiry;
+      // const isTokenNeartoExpiry =
+      //   typeof token.accessTokenExpiry === "number" &&
+      //   Date.now() >= token.accessTokenExpiry - 10 * 60 * 1000;
 
-      const isTokenNeartoExpiry =
-        typeof token.accessTokenExpiry === "number" &&
-        Date.now() >= token.accessTokenExpiry - 10 * 60 * 1000;
+      if (token.accessTokenExpiry && typeof token.accessTokenExpiry === "number") {
+        if (Date.now() > token.accessTokenExpiry) {
+          try {
+            // token.isRefreshing = true;
+            const response = await axios.post(
+              `${process.env.BACKEND_URL}/api/accounts/pytoken/refresh/`,
+              { refresh: token.refreshToken },
+              {
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-Api-Key": process.env.BACKEND_API_KEY
+                },
+              }
+            );
+            console.log(response.data)
+            token.token = response.data.access;
+            token.refreshToken = response.data.refresh
+            token.accessTokenExpiry = Date.now() + 45 * 60 * 1000;
+          } catch (error) {
+            console.error("Token refresh error:");
 
-      if (isTokenNeartoExpiry && !token.isRefreshing) {
-        try {
-          token.isRefreshing = true;
-          const response = await axios.post(
-            `${process.env.BACKEND_URL}/api/accounts/pytoken/refresh/`,
-            { refresh: token.refreshToken },
-            {
-              headers: {
-                "Content-Type": "application/json",
-                "X-Api-Key": process.env.BACKEND_API_KEY
-              },
+            let errorMessage = "500: Failed to refresh token";
+            if (axios.isAxiosError(error)) {
+              const status = error.response?.status || 500;
+              const detail = error.response?.data?.detail
+                || error.response?.data?.error
+                || error.message
+                || "Unknown refresh error";
+              errorMessage = `${status}: ${detail}`;
+              console.error(`Axios error - Status: ${status}, Detail: ${detail}`);
+            } else if (error instanceof Error) {
+              errorMessage = `500: ${error.message}`;
+              console.error("Generic error:", error.message);
             }
-          );
-
-          token.token = response.data.access;
-          token.refreshToken = response.data.refresh
-          token.accessTokenExpiry = Date.now() + 60 * 60 * 1000;
-        } catch (error) {
-          console.error("Token refresh error:");
-
-          let errorMessage = "500: Failed to refresh token";
-          if (axios.isAxiosError(error)) {
-            const status = error.response?.status || 500;
-            const detail = error.response?.data?.detail
-              || error.response?.data?.error
-              || error.message
-              || "Unknown refresh error";
-            errorMessage = `${status}: ${detail}`;
-            console.error(`Axios error - Status: ${status}, Detail: ${detail}`);
-          } else if (error instanceof Error) {
-            errorMessage = `500: ${error.message}`;
-            console.error("Generic error:", error.message);
+            token = {} as JWT;
+            throw new Error(errorMessage);
           }
-          token = {} as JWT;
-          throw new Error(errorMessage);
-        } finally {
-          token.isRefreshing = false;
+          // finally {
+          //   token.isRefreshing = false;
+          // }
         }
       }
       return token;

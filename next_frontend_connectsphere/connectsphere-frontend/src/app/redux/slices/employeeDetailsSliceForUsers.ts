@@ -4,36 +4,37 @@ import axios from 'axios';
 export interface EmployeeDetails {
   employee_id: string | null;
   full_name: string | null;
-  role_name: string | null;
   designation: string | null;
-  reporting_manager_name: string | null;
-  joining_date: string | '';
-  performance_rating: number | null;
   department: string | null;
+  performance_rating: number | null;
+  reporting_manager_name: string | null;
   contact_number: string | null;
   emergency_contact: string | null;
+  role_name: string | null;
   skills: string[];
+  joining_date: string | '';
+
 }
 
-interface EmployeeState {
+interface EmployeeDetailsState {
   details: Record<number, EmployeeDetails>;
   loading: boolean;
   error: string | null;
 }
 
-const initialState: EmployeeState = {
+const initialState: EmployeeDetailsState = {
   details: {},
   loading: false,
   error: null,
 };
 
 export const fetchEmployeePublicDetails = createAsyncThunk(
-  'employeePublicDetails/fetchEmployeePublicDetails',
+  'employeeDetails/fetch',
   async (userId: number, { rejectWithValue }) => {
     try {
-      const response = await axios.get(
-        `/api/employees/public_details_of_employee_by_user_id?userId=${userId}`,
-        { withCredentials: true }
+      const response = await axios.post(
+        `/api/employees/publicDetailsOfEmployee/`,
+        { userId }
       );
       return { userId, details: response.data };
     } catch (error: any) {
@@ -45,8 +46,8 @@ export const fetchEmployeePublicDetails = createAsyncThunk(
   },
   {
     condition: (userId, { getState }) => {
-      const state = getState() as { employee: EmployeeState };
-      if (state.employee.details[userId]) {
+      const state = getState() as { employeeDetails: EmployeeDetailsState };
+      if (state.employeeDetails.details[userId]) {
         return false;
       }
       return true;
@@ -54,10 +55,10 @@ export const fetchEmployeePublicDetails = createAsyncThunk(
   }
 );
 
-const MAX_PROFILE_DETAILS = 1;
+const MAX_PROFILE_DETAILS = 100;
 
-const employeeDetailsSliceForUser = createSlice({
-  name: 'employeePublicDetails',
+const employeeDetailsSliceForUsers = createSlice({
+  name: 'employeeDetails',
   initialState: { ...initialState, detailsOrder: [] as number[] },
   reducers: {},
   extraReducers: (builder) => {
@@ -89,4 +90,4 @@ const employeeDetailsSliceForUser = createSlice({
   },
 });
 
-export default employeeDetailsSliceForUser.reducer;
+export default employeeDetailsSliceForUsers.reducer;

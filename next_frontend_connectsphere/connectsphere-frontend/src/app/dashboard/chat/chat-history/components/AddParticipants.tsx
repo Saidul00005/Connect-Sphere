@@ -20,6 +20,7 @@ import { ArrowLeft, Search, Users, Loader2 } from "lucide-react"
 import type { User } from '@/app/dashboard/chat/chat-history/types/chatHistoryTypes';
 import { useToast } from "@/hooks/use-toast"
 import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 
 interface AddParticipantsProps {
   onBack: () => void
@@ -28,7 +29,13 @@ interface AddParticipantsProps {
 }
 
 export function AddParticipants({ onBack, roomId, existingParticipants }: AddParticipantsProps) {
-  const { status } = useSession()
+  const router = useRouter()
+  const { status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      router.push("/")
+    },
+  })
   const dispatch = useAppDispatch()
   const [selectedParticipants, setSelectedParticipants] = useState<User[]>([])
   const { toast } = useToast()
