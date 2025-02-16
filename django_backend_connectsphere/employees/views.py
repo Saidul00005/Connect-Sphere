@@ -243,8 +243,8 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def get_queryset(self):
-        if self.request.user.role.name != 'CEO':
-            return Employee.objects.none()
+        # if self.request.user.role.name != 'CEO':
+        #     return Employee.objects.none()
 
         queryset = Employee.objects.all()
 

@@ -3,11 +3,11 @@
 import { use, useEffect, useCallback, useState, useRef } from "react"
 import { useAppDispatch, useAppSelector } from "@/app/redux/store"
 import { fetchMessages, editMessage, deleteMessage, resetMessages, markMessagesAsRead } from "@/app/redux/slices/chatMessagesSlice"
-import { fetchSingleChatRoom } from "@/app/redux/slices/chatRoomSlice"
+import { fetchSingleChatRoom, removeParticipant } from "@/app/redux/slices/chatRoomSlice"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { MoreVertical, ArrowDown, ArrowLeft, Users, Check, CheckCheck, Loader2 } from "lucide-react"
+import { MoreVertical, ArrowDown, ArrowLeft, Users, Check, CheckCheck, Loader2, Trash } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
@@ -27,6 +27,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import EmployeeDetailsForUsers from "../components/EmployeeDetailsForUsers"
+
 
 interface ChatRoomPageProps {
   params: Promise<{ roomId: string }>
@@ -56,6 +57,7 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [participantRemovingUserId, setParticipantRemovingUserId] = useState<number | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -239,34 +241,87 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
                 <PopoverContent className="w-80">
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {singleChatRoom?.participants.map((participant) => {
-                      const isCurrentUser = participant.id === Number(session?.user?.id)
-                      const isAdmin = participant.id === singleChatRoom?.created_by.id
+                      const isCurrentUser = participant.id === Number(session?.user?.id);
+                      const isAdmin = participant.id === singleChatRoom?.created_by.id;
+                      const isGroupChat = singleChatRoom?.type === 'GROUP';
+                      const isChatOwner = singleChatRoom?.created_by.id === Number(session?.user?.id);
+
                       return (
-                        <Button
-                          key={participant.id}
-                          variant="ghost"
-                          className="w-full h-auto justify-start p-2 rounded-lg hover:bg-muted"
-                          onClick={() => setSelectedUserId(participant.id)}
-                        >
-                          <div className="flex items-center gap-2 w-full">
-                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                              {participant.first_name[0]}
-                              {participant.last_name[0]}
-                            </div>
-                            <div className="flex flex-col items-start">
-                              <p className="font-medium text-sm">
-                                {participant.first_name} {participant.last_name}{" "}
-                                {isCurrentUser && <span className="italic">(You)</span>}
-                              </p>
-                              {isAdmin && (
-                                <Badge variant="secondary" className="text-xs w-fit">
-                                  Admin
-                                </Badge>
-                              )}
-                            </div>
+                        <div key={participant.id} className="w-full">
+                          <div className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-muted">
+                            <Button
+                              variant="ghost"
+                              className="flex-1 h-auto justify-start p-0"
+                              onClick={() => setSelectedUserId(participant.id)}
+                            >
+                              <div className="flex items-center gap-2 w-full">
+                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                  {participant.first_name[0]}
+                                  {participant.last_name[0]}
+                                </div>
+                                <div className="flex flex-col items-start">
+                                  <p className="font-medium text-sm">
+                                    {participant.first_name} {participant.last_name}
+                                    {isCurrentUser && <span className="italic"> (You)</span>}
+                                  </p>
+                                  {isAdmin && (
+                                    <Badge variant="secondary" className="text-xs w-fit">
+                                      Admin
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </Button>
+
+                            {isGroupChat && isChatOwner && participant.id !== Number(session?.user?.id) && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    onClick={async (e) => {
+                                      e.preventDefault();
+                                      try {
+                                        setParticipantRemovingUserId(participant.id);
+                                        await dispatch(removeParticipant({
+                                          roomId: Number(roomId),
+                                          userId: participant.id
+                                        })).unwrap();
+
+                                        toast({
+                                          title: "Participant Removed",
+                                          description: `${participant.first_name} has been removed from the chat`,
+                                        });
+                                      } catch (error) {
+                                        toast({
+                                          title: "Removal Failed",
+                                          description: error instanceof Error ? error.message : "Failed to remove participant",
+                                          variant: "destructive",
+                                        });
+                                      } finally {
+                                        setParticipantRemovingUserId(null);
+                                      }
+                                    }}
+                                    disabled={participantRemovingUserId === participant.id}
+                                  >
+                                    {participantRemovingUserId === participant.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <span className="flex items-center gap-2 text-destructive">
+                                        <Trash className="h-4 w-4" />
+                                        Remove
+                                      </span>
+                                    )}
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
                           </div>
-                        </Button>
-                      )
+                        </div>
+                      );
                     })}
                   </div>
                 </PopoverContent>
@@ -493,25 +548,27 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
         <MessageInput roomId={roomId} onMessageSent={scrollToBottom} />
       </div>
 
-      {selectedUserId && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50">
-          <div className="fixed inset-x-4 top-[50%] translate-y-[-50%] sm:inset-x-auto sm:left-[50%] sm:translate-x-[-50%] sm:max-w-2xl h-[90vh] bg-background rounded-lg shadow-lg overflow-hidden">
-            <div className="h-full overflow-y-auto p-4">
-              <EmployeeDetailsForUsers userId={selectedUserId} />
-              <div className="sticky bottom-0 pt-4 bg-background">
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  onClick={() => setSelectedUserId(null)}
-                >
-                  Close
-                </Button>
+      {
+        selectedUserId && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50">
+            <div className="fixed inset-x-4 top-[50%] translate-y-[-50%] sm:inset-x-auto sm:left-[50%] sm:translate-x-[-50%] sm:max-w-2xl h-[90vh] bg-background rounded-lg shadow-lg overflow-hidden">
+              <div className="h-full overflow-y-auto p-4">
+                <EmployeeDetailsForUsers userId={selectedUserId} />
+                <div className="sticky bottom-0 pt-4 bg-background">
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={() => setSelectedUserId(null)}
+                  >
+                    Close
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   )
 }
 

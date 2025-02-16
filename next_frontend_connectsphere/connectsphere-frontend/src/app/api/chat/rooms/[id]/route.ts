@@ -37,3 +37,52 @@ export async function DELETE(
     )
   }
 }
+
+interface RemoveParticipantRequest {
+  user_id: number
+}
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    const { id } = await params;
+    const { user_id: userId } = await req.json() as RemoveParticipantRequest;
+
+    if (!session?.user?.token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: "User ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const response = await axios.post(
+      `${process.env.BACKEND_URL}/api/chat/rooms/${id}/remove_participant/`,
+      { user_id: userId },
+      {
+        headers: {
+          'Authorization': `Bearer ${session.user.token}`,
+          'X-Api-Key': process.env.BACKEND_API_KEY || '',
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    return NextResponse.json(
+      { message: "Participant removed successfully" },
+      { status: response.status }
+    );
+  } catch (error: any) {
+    console.error('Remove participant error:', error);
+    return NextResponse.json(
+      { error: error.response?.data?.error || "Failed to remove participant" },
+      { status: error.response?.status || 500 }
+    );
+  }
+}

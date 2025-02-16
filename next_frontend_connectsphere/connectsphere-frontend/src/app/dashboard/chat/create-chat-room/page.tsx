@@ -243,20 +243,20 @@ export default function CreateChatRoom() {
     session?.user?.id])
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-background p-4 md:p-8 grid md:grid-cols-2 gap-8">
-      <div className="space-y-6">
+    <div className="min-h-[calc(100vh-4rem)] bg-background p-4 space-y-6 md:space-y-0 md:p-8 md:grid md:grid-cols-2 md:gap-8">
+      <div className="space-y-4 md:space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Create Chat Room</h1>
-          <p className="text-muted-foreground mt-2">Select participants for your chat</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Create Chat Room</h1>
+          <p className="text-muted-foreground mt-2 text-sm md:text-base">Select participants for your chat</p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Room Type</CardTitle>
+        <Card className="w-full">
+          <CardHeader className="p-4 md:p-6">
+            <CardTitle className="text-lg md:text-xl">Room Type</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 md:p-6">
             <Select value={type} onValueChange={(value: ChatType) => dispatch(setType(value))}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -268,34 +268,35 @@ export default function CreateChatRoom() {
         </Card>
 
         {type === "GROUP" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Room Name</CardTitle>
+          <Card className="w-full">
+            <CardHeader className="p-4 md:p-6">
+              <CardTitle className="text-lg md:text-xl">Room Name</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 md:p-6">
               <Input
                 value={name}
                 onChange={(e) => dispatch(setName(e.target.value))}
                 placeholder="Enter room name"
                 required
+                className="w-full"
               />
             </CardContent>
           </Card>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Selected Participants</CardTitle>
-            <CardDescription>
+        <Card className="w-full">
+          <CardHeader className="p-4 md:p-6">
+            <CardTitle className="text-lg md:text-xl">Selected Participants</CardTitle>
+            <CardDescription className="text-sm">
               {type === "DIRECT" ? "Select 1 participant" : "Select at least 2 participants"}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 md:p-6">
             <div className="flex flex-wrap gap-2">
               {selectedParticipants.map((participant) => (
                 <div
                   key={participant.id}
-                  className="flex items-center gap-2 bg-primary/10 text-primary rounded-full px-3 py-1"
+                  className="flex items-center gap-2 bg-primary/10 text-primary rounded-full px-3 py-1 text-sm md:text-base"
                 >
                   <span>
                     {participant.user__first_name} {participant.user__last_name}
@@ -313,18 +314,18 @@ export default function CreateChatRoom() {
         </Card>
       </div>
 
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Search Participants</CardTitle>
+      <div className="space-y-4 md:space-y-6">
+        <Card className="w-full">
+          <CardHeader className="p-4 md:p-6">
+            <CardTitle className="text-lg md:text-xl">Search Participants</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2">
+          <CardContent className="p-4 md:p-6 space-y-4">
+            <div className="flex flex-col md:flex-row gap-2">
               <div className="relative flex-grow">
                 <Input
                   ref={searchInputRef}
                   placeholder="Search by name"
-                  className="pr-20"
+                  className="w-full pr-20"
                 />
                 <Button
                   onClick={handleSearch}
@@ -333,24 +334,26 @@ export default function CreateChatRoom() {
                   Search
                 </Button>
               </div>
-              <Select value={department} onValueChange={handleDepartmentChange}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Department" />
-                </SelectTrigger>
-                <SelectContent>
-                  {departments.map((dept) => (
-                    <SelectItem key={dept.id} value={dept.name}>
-                      {dept.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button variant="outline" onClick={handleClearFilters}>
-                Clear
-              </Button>
+              <div className="flex gap-2 w-full md:w-auto">
+                <Select value={department} onValueChange={handleDepartmentChange}>
+                  <SelectTrigger className="w-full md:w-[180px]">
+                    <SelectValue placeholder="Department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.name}>
+                        {dept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" onClick={handleClearFilters} className="whitespace-nowrap">
+                  Clear
+                </Button>
+              </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[50vh] md:max-h-[60vh] overflow-y-auto">
               {employeeListLoading ? (
                 <div className="animate-pulse space-y-2">
                   {[1, 2, 3].map((i) => (
@@ -364,19 +367,19 @@ export default function CreateChatRoom() {
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => handleParticipantSelect(employee)}
                   >
-                    <CardContent className="p-4">
+                    <CardContent className="p-3 md:p-4">
                       <div className="flex justify-between items-center">
                         <div>
-                          <p className="font-medium">
+                          <p className="font-medium text-sm md:text-base">
                             {employee.user__id === Number(session?.user?.id) ? "You" : `${employee.user__first_name} ${employee.user__last_name}`}
                           </p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs md:text-sm text-muted-foreground">
                             {employee.department__name} - {employee.designation}
                           </p>
                         </div>
                         {selectedParticipants.find(p => p.id === employee.id) && (
                           <div className="text-primary">
-                            <Users className="h-5 w-5" />
+                            <Users className="h-4 w-4 md:h-5 md:w-5" />
                           </div>
                         )}
                       </div>
@@ -389,13 +392,13 @@ export default function CreateChatRoom() {
         </Card>
 
         <div className="flex items-center justify-center gap-4 mt-4">
-          <Button onClick={handlePreviousPage} disabled={!previousPageUrl}>
+          <Button onClick={handlePreviousPage} disabled={!previousPageUrl} className="text-sm md:text-base">
             Previous
           </Button>
-          <span>
+          <span className="text-sm md:text-base">
             Page {currentPageNumber} of {totalPages}
           </span>
-          <Button onClick={handleNextPage} disabled={!nextPageUrl}>
+          <Button onClick={handleNextPage} disabled={!nextPageUrl} className="text-sm md:text-base">
             Next
           </Button>
         </div>

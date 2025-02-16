@@ -35,7 +35,7 @@ export const authOptions: NextAuthOptions = {
           );
 
           const userResponse = response.data;
-          console.log(userResponse)
+          // console.log(userResponse)
 
           if (!userResponse.access || !userResponse.refresh || !userResponse.user) {
             throw new Error("Invalid response from backend: Missing user, access token, or refresh token.");

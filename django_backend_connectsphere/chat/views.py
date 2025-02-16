@@ -287,6 +287,61 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 
         return Response({'message': 'Chatroom successfully restored'}, status=status.HTTP_200_OK)
 
+
+    # Add to ChatRoomViewSet in views.py
+    @action(detail=True, methods=['post'])
+    def remove_participant_for_chatroom_admin(self, request, pk=None):
+
+        chatroom = self.get_object()
+        user_id = request.data.get('user_id')
+
+        if not user_id:
+            return Response(
+                {'error': 'user_id is required in request body'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if chatroom.type != 'GROUP':
+            return Response(
+                {'error': 'Participants can only be removed from group chatrooms'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if chatroom.created_by != request.user:
+            return Response(
+                {'error': 'Only the chatroom owner can remove participants'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            user_to_remove = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if not chatroom.participants.filter(id=user_id).exists():
+            return Response(
+                {'error': 'User is not a participant in this chatroom'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if user_id == chatroom.created_by.id:
+            return Response(
+                {'error': 'Cannot remove chatroom owner'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        chatroom.participants.remove(user_to_remove)
+        chatroom.last_modified_at = timezone.now()
+        chatroom.save()
+
+        return Response(
+            {'message': f'Participant {user_id} removed successfully'},
+            status=status.HTTP_200_OK
+        )
+
 class MessageViewSet(viewsets.ModelViewSet):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer

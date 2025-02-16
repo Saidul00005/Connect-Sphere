@@ -74,6 +74,26 @@ export const addParticipants = createAsyncThunk(
   }
 );
 
+export const removeParticipant = createAsyncThunk(
+  'chatRoom/removeParticipant',
+  async (
+    { roomId, userId }: { roomId: number; userId: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      await axios.post(`/api/chat/rooms/${roomId}/`, {
+        user_id: userId
+      });
+      return { roomId, userId };
+    } catch (error: any) {
+      if (error.response) {
+        return rejectWithValue(error.response.data);
+      }
+      return rejectWithValue({ message: 'Failed to remove participant' });
+    }
+  }
+);
+
 
 const singleChatRoomSlice = createSlice({
   name: 'singleChatRoom',
@@ -119,6 +139,16 @@ const singleChatRoomSlice = createSlice({
           } else if (participants) {
             room.participants = [...room.participants, ...newParticipants];
           }
+        }
+      })
+      .addCase(removeParticipant.fulfilled, (state, action) => {
+        const { roomId, userId } = action.payload;
+        const room = state.rooms[roomId];
+
+        if (room) {
+          room.participants = room.participants.filter(
+            (participant: User) => participant.id !== userId
+          );
         }
       })
   },

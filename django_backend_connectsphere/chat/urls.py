@@ -15,9 +15,9 @@ urlpatterns = [
     path('rooms/<int:pk>/', ChatRoomViewSet.as_view({'get': 'retrieve'}), name='fetch_chat_room_details_for_chatroom_participants'),
     path('rooms/<int:pk>/update/', ChatRoomViewSet.as_view({'patch': 'update'}), name='update_chat_room_information_for_chatroom_admin'),
     path('rooms/<int:pk>/delete/', ChatRoomViewSet.as_view({'delete': 'destroy'}), name='soft_delete_chat_room_for_chatroom_admin'),
-
+    path('rooms/<int:pk>/delete/', ChatRoomViewSet.as_view({'delete': 'destroy'}), name='soft_delete_chat_room_for_chatroom_admin'),
+    path('rooms/<int:pk>/remove_participant/', ChatRoomViewSet.as_view({'post': 'remove_participant_for_chatroom_admin'}), name='remove_participant_for_chatroom_admin'),
     path('rooms/add_participants/', ChatRoomViewSet.as_view({'post': 'add_participants'}), name='add_participants_in_chat_room_for_chat_room_admin'),
-    path('rooms/<int:pk>/restore/', ChatRoomViewSet.as_view({'patch': 'restore'}), name='restore_chatroom_for_CEO'),
 
 
     path('messages/', MessageViewSet.as_view({'get': 'list'}), name='list_messages_for_request_user'),

@@ -40,11 +40,10 @@ export default function JoinChatRoom() {
             Find and join public chat rooms to start conversations.
           </p>
         </div>
-
         <Card>
           <CardHeader>
             <CardTitle>Search Chat Rooms</CardTitle>
-            <CardDescription>This page is under construction.</CardDescription>
+            <CardDescription className="text-green-700 font-bold text-lg">This page is under construction.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="relative mb-4">
