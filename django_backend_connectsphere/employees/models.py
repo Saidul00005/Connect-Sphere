@@ -2,8 +2,9 @@ from django.db import models
 from django.conf import settings
 
 class Department(models.Model):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
+    last_employee_id = models.PositiveIntegerField(default=0) 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -22,12 +23,39 @@ class Employee(models.Model):
         related_name='reporting_employees'
     )
     joining_date = models.DateField()
-    contact_number = models.CharField(max_length=20)
-    emergency_contact = models.CharField(max_length=20)
+    contact_number = models.CharField(max_length=11)
+    emergency_contact = models.CharField(max_length=11)
     address = models.TextField()
     skills = models.JSONField(default=list)
     performance_rating = models.FloatField(null=True, blank=True)
     last_review_date = models.DateField(null=True, blank=True)
+
+    @property
+    def full_name(self):
+        if self.user:
+            return f"{self.user.first_name} {self.user.last_name}"
+        return "Unknown"
+
+    @property
+    def reporting_manager_name(self):
+        if self.reporting_manager:
+            return f"{self.reporting_manager.first_name} {self.reporting_manager.last_name}"
+        return "Unknown"
+
+    @property
+    def role_name(self):
+        if self.user:
+            return f"{self.user.role.name}"
+        return "Unknown"
+
+    def save(self, *args, **kwargs):
+        if not self.employee_id: 
+            dept_code = self.department.name.ljust(3)[:3].upper()
+            self.department.last_employee_id += 1
+            self.department.save()
+            self.employee_id = f"{dept_code}{self.department.last_employee_id:04d}"
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.employee_id} - {self.user.get_full_name()}"

@@ -43,10 +43,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # Third party apps
+    # Thiparty apps
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
+    'rest_framework_api_key',
     'corsheaders',
     'channels',
+
     # Local apps
     'accounts',
     'employees',
@@ -73,17 +76,31 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework_api_key.permissions.HasAPIKey',
         'rest_framework.permissions.IsAuthenticated',
-    ]
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.AnonRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'user': '200/hour',  # 200 requests per hour per user
+        'anon': '30/minute',  # 30 requests per minute for anonymous users
+    }
+
 }
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=2),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': False,
 }
 
-CORS_ALLOWED_ORIGINS =['http://192.168.1.7', 'http://localhost', 'http://127.0.0.1',]   
-
+# CORS_ALLOWED_ORIGINS =['http://192.168.1.7', 'http://localhost', 'http://127.0.0.1',]   
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') 
 
 TEMPLATES = [
     {
@@ -116,7 +133,7 @@ DATABASES = {
         'HOST': os.getenv('DATABASE_HOST'), 
         'PORT': int(os.getenv('DATABASE_PORT')), 
         'OPTIONS': {
-            'sslmode': 'require',  
+            'sslmode':os.getenv('DATABASE_SSL_MODE') ,  
         },
     }
 }
@@ -156,9 +173,14 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = os.getenv('STATIC_ROOT')
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+API_KEY_CUSTOM_HEADER = "HTTP_X_API_KEY"

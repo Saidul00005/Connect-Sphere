@@ -5,22 +5,21 @@ from .models import User, Role
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
     model = User
-    list_display = ('id','email', 'username','first_name', 'last_name', 'role', 'profile_picture', 'is_approved', 'approved_by', 'is_active', 'is_staff', 'is_superuser')
-    list_filter = ('role', 'is_approved', 'is_active', 'is_staff', 'is_superuser')
+    list_display = ('id','email', 'username','first_name', 'last_name', 'role', 'profile_picture', 'is_approved', 'approved_by', 'is_active', 'is_staff', 'is_superuser','is_deleted')
+    list_filter = ('role', 'is_approved', 'is_active', 'is_staff', 'is_superuser','is_deleted')
     search_fields = ('email', 'username', 'role__name', 'is_approved')
     ordering = ('email',)
     actions = ['approve_users']
-    # Fieldsets for editing users
     fieldsets = (
         (None, {'fields': ('email', 'username', 'password')}),
-        ('Personal Info', {'fields': ('first_name', 'last_name', 'profile_picture')}),  # Add profile_picture here
+        ('Personal Info', {'fields': ('first_name', 'last_name', 'profile_picture')}), 
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
-        ('Role Information', {'fields': ('role',)}),  # Adding the role field here
-        ('Approval Information', {'fields': ('is_approved', 'approved_by')}),  # Adding approval fields here
+        ('Role Information', {'fields': ('role',)}),  
+        ('Approval Information', {'fields': ('is_approved', 'approved_by')}),
+        ('Soft Delete', {'fields': ('is_deleted',)}),
     )
 
-    # Custom form for adding new users with all required fields
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
@@ -40,5 +39,4 @@ class RoleAdmin(admin.ModelAdmin):
     list_display = ('name', 'permissions')
     search_fields = ('name',)
     ordering = ('name',)
-
 
