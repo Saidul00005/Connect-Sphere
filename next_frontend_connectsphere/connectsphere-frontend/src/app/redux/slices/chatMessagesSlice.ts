@@ -154,6 +154,12 @@ const chatMessagesSlice = createSlice({
         }
         return message;
       });
+    },
+    addMessage: (state, action: PayloadAction<Message>) => {
+      state.allMessages.push(action.payload);
+    },
+    deleteMessageSuccess: (state, action: PayloadAction<number>) => {
+      state.allMessages = state.allMessages.filter(m => m.id !== action.payload);
     }
   },
   extraReducers: (builder) => {
@@ -198,5 +204,5 @@ const chatMessagesSlice = createSlice({
   },
 })
 
-export const { resetMessages, markMessagesRead } = chatMessagesSlice.actions
+export const { resetMessages, markMessagesRead, addMessage, deleteMessageSuccess } = chatMessagesSlice.actions
 export default chatMessagesSlice.reducer

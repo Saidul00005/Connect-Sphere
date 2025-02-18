@@ -12,6 +12,13 @@ from django.db.models import OuterRef,Count,Subquery,Prefetch,IntegerField,Q
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from accounts.models import User
+import os
+import redis
+import json
+
+REDIS_URL = os.getenv("REDIS_URL")
+
+redis_client = redis.Redis.from_url(REDIS_URL,ssl_cert_reqs=None )
 
 class ChatRoomViewSet(viewsets.ModelViewSet):
     queryset = ChatRoom.objects.all()
@@ -386,6 +393,16 @@ class MessageViewSet(viewsets.ModelViewSet):
         message = serializer.save(sender=self.request.user, is_sent=True, is_delivered=True)
         message.read_by.add(self.request.user)
 
+        message_data = MessageSerializer(message).data
+        redis_client.publish(
+            'message_events',
+            json.dumps({
+                'event': 'new_message',
+                'roomId': str(room_id),
+                'data': message_data
+            })
+        )
+
     def update(self, request, *args, **kwargs):
         message_id = kwargs.get('pk')
         room_id = request.data.get('room')
@@ -432,6 +449,14 @@ class MessageViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
+        # redis_client.publish(
+        #     'message_events',
+        #     json.dumps({
+        #         'event': 'edit_message',
+        #         'roomId': str(room_id),
+        #         'data': serializer.data
+        #     })
+        # )
         return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):
@@ -476,6 +501,15 @@ class MessageViewSet(viewsets.ModelViewSet):
         message.is_restored = False
         message.last_deleted_at = timezone.now()
         message.save()
+
+        redis_client.publish(
+            'message_events',
+            json.dumps({
+                'event': 'delete_message',
+                'roomId': str(room_id),
+                'data': {'messageId': message_id}
+            })
+        )
 
         return Response(
             {'message': 'Message soft deleted successfully'},
@@ -525,6 +559,15 @@ class MessageViewSet(viewsets.ModelViewSet):
                     for mid in batch
                 ]
                 MessageRead.objects.bulk_create(objs, ignore_conflicts=True)
+
+            # redis_client.publish(
+            #     'room_events',
+            #     json.dumps({
+            #         'event': 'mark_read',
+            #         'roomId': str(room_id),
+            #         'data': {'userId': user.id}
+            #     })
+            # )
                 
         except Exception as e:
             return Response(

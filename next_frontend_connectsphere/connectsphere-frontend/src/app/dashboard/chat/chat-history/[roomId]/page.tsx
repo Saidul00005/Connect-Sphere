@@ -2,7 +2,7 @@
 
 import { use, useEffect, useCallback, useState, useRef } from "react"
 import { useAppDispatch, useAppSelector } from "@/app/redux/store"
-import { fetchMessages, editMessage, deleteMessage, resetMessages, markMessagesAsRead } from "@/app/redux/slices/chatMessagesSlice"
+import { fetchMessages, editMessage, deleteMessage, resetMessages, markMessagesAsRead, addMessage, deleteMessageSuccess } from "@/app/redux/slices/chatMessagesSlice"
 import { fetchSingleChatRoom, removeParticipant } from "@/app/redux/slices/chatRoomSlice"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
@@ -27,6 +27,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import EmployeeDetailsForUsers from "../components/EmployeeDetailsForUsers"
+import { io } from 'socket.io-client';
 
 
 interface ChatRoomPageProps {
@@ -72,6 +73,37 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
       }
     }
   }, [status, dispatch])
+
+  useEffect(() => {
+    const socket = io(process.env.SOCKET_URL, {
+      path: "/socket.io",
+      transports: ["websocket", "polling"],
+      autoConnect: true,
+      withCredentials: true,
+      reconnectionAttempts: 5,
+      auth: { token: session?.user?.token },
+      reconnectionDelay: 1000,
+      forceNew: true,
+      timeout: 20000
+    });
+
+    socket.emit('join', roomId);
+
+    socket.on('new_message', (message) => {
+      if (message.sender.id !== Number(session?.user?.id)) {
+        dispatch(addMessage(message));
+        scrollToBottom();
+      }
+    });
+
+    socket.on('delete_message', ({ messageId }) => {
+      dispatch(deleteMessageSuccess(messageId));
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [roomId, session]);
 
   useEffect(() => {
     if (initialLoad.current && !loading && allMessages.length > 0) {

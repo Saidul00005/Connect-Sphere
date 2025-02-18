@@ -97,6 +97,8 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=2),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': False,
+    'SIGNING_KEY': os.getenv('JWT_SECRET_KEY', 'secret-key')
+     
 }
 
 # CORS_ALLOWED_ORIGINS =['http://192.168.1.7', 'http://localhost', 'http://127.0.0.1',]   
