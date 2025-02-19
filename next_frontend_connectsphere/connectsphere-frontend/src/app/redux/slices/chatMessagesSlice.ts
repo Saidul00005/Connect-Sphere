@@ -148,18 +148,53 @@ const chatMessagesSlice = createSlice({
           !message.read_by?.some(u => u.id === action.payload.user.id)) {
           return {
             ...message,
-            read_by: [...(message.read_by || []), action.payload.user],
-            is_delivered: true
+            read_by: [...(message.read_by || []), action.payload.user]
           };
         }
         return message;
       });
     },
     addMessage: (state, action: PayloadAction<Message>) => {
-      state.allMessages.push(action.payload);
+      const newMessage = action.payload;
+
+      if (!state.allMessages.some(m => m.id === newMessage.id && m.room === newMessage.room)) {
+        state.allMessages.push({ ...newMessage, read_by: newMessage.read_by || [] });
+      }
     },
-    deleteMessageSuccess: (state, action: PayloadAction<number>) => {
-      state.allMessages = state.allMessages.filter(m => m.id !== action.payload);
+    deleteMessageSuccess: (state, action: PayloadAction<Message>) => {
+      const deletedMessage = action.payload
+      const message = state.allMessages.find((m) => m.id === deletedMessage.id && m.room === deletedMessage.room)
+      if (message) {
+        message.is_deleted = true
+        message.content = "This message was deleted"
+      }
+    },
+    socketMarkMessagesRead: (state, action: PayloadAction<{ roomId: number; user: User }>) => {
+      state.allMessages = state.allMessages.map(message => {
+        if (message.room === action.payload.roomId &&
+          !message.read_by?.some(u => u.id === action.payload.user.id)) {
+          return {
+            ...message,
+            read_by: [...(message.read_by || []), action.payload.user]
+          };
+        }
+        return message;
+      });
+    },
+    socketEditMessage: (state, action: PayloadAction<Message>) => {
+      const editedMessage = action.payload;
+      const index = state.allMessages.findIndex(m =>
+        m.id === editedMessage.id &&
+        m.room === editedMessage.room
+      );
+
+      if (index !== -1) {
+        state.allMessages[index] = {
+          ...editedMessage,
+          is_modified: true,
+          last_modified_at: new Date().toISOString()
+        };
+      }
     }
   },
   extraReducers: (builder) => {
@@ -204,5 +239,5 @@ const chatMessagesSlice = createSlice({
   },
 })
 
-export const { resetMessages, markMessagesRead, addMessage, deleteMessageSuccess } = chatMessagesSlice.actions
+export const { resetMessages, markMessagesRead, addMessage, deleteMessageSuccess, socketMarkMessagesRead, socketEditMessage } = chatMessagesSlice.actions
 export default chatMessagesSlice.reducer

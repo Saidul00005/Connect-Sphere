@@ -2,7 +2,7 @@
 
 import { use, useEffect, useCallback, useState, useRef } from "react"
 import { useAppDispatch, useAppSelector } from "@/app/redux/store"
-import { fetchMessages, editMessage, deleteMessage, resetMessages, markMessagesAsRead, addMessage, deleteMessageSuccess } from "@/app/redux/slices/chatMessagesSlice"
+import { fetchMessages, editMessage, deleteMessage, resetMessages, markMessagesAsRead, addMessage, deleteMessageSuccess, socketMarkMessagesRead, socketEditMessage } from "@/app/redux/slices/chatMessagesSlice"
 import { fetchSingleChatRoom, removeParticipant } from "@/app/redux/slices/chatRoomSlice"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
@@ -75,7 +75,7 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   }, [status, dispatch])
 
   useEffect(() => {
-    const socket = io(process.env.SOCKET_URL, {
+    const socket = io('http://localhost:3001', {
       path: "/socket.io",
       transports: ["websocket", "polling"],
       autoConnect: true,
@@ -87,17 +87,49 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
       timeout: 20000
     });
 
+    socket.on("connect", () => {
+      console.log("Connected to WebSocket server:", socket.id);
+    });
+
+    socket.on("connect_error", (err) => {
+      console.error("WebSocket connection error:", err);
+    });
+
+
     socket.emit('join', roomId);
 
     socket.on('new_message', (message) => {
-      if (message.sender.id !== Number(session?.user?.id)) {
+      if (Number(message.sender.id) !== Number(session?.user?.id)) {
         dispatch(addMessage(message));
-        scrollToBottom();
+        setTimeout(() => {
+          scrollToBottom();
+        }, 100);
       }
     });
 
-    socket.on('delete_message', ({ messageId }) => {
-      dispatch(deleteMessageSuccess(messageId));
+    socket.on('delete_message', (message) => {
+      if (Number(message.sender.id) !== Number(session?.user?.id)) {
+        dispatch(deleteMessageSuccess(message));
+      }
+    });
+
+    socket.on('mark_read', (data) => {
+      if (Number(data.user.id) !== Number(session?.user?.id)) {
+        dispatch(socketMarkMessagesRead({
+          roomId: Number(data.roomId),
+          user: {
+            id: Number(data.user.id),
+            first_name: data.user.first_name || '',
+            last_name: data.user.last_name || '',
+          }
+        }));
+      }
+    });
+
+    socket.on('edit_message', (message) => {
+      if (Number(message.sender.id) !== Number(session?.user?.id)) {
+        dispatch(socketEditMessage(message));
+      }
     });
 
     return () => {
@@ -413,7 +445,7 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
                 return (
                   <div key={message.id} className={`flex flex-col ${isCurrentUser ? "items-end" : "items-start"}`}>
                     <span className="text-xs text-muted-foreground mb-1 mx-3">
-                      {isCurrentUser ? "You" : message.sender.first_name + " " + message.sender.last_name}
+                      {isCurrentUser ? "You" : message.sender?.first_name + " " + message.sender?.last_name}
                     </span>
                     <div
                       className={`group relative max-w-[70%] rounded-2xl px-4 py-2 ${isCurrentUser ? "bg-primary text-primary-foreground" : "bg-muted"

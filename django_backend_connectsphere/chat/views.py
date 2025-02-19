@@ -18,7 +18,8 @@ import json
 
 REDIS_URL = os.getenv("REDIS_URL")
 
-redis_client = redis.Redis.from_url(REDIS_URL,ssl_cert_reqs=None )
+# redis_client = redis.Redis.from_url(REDIS_URL,ssl_cert_reqs=None )
+redis_client = redis.Redis.from_url(REDIS_URL)
 
 class ChatRoomViewSet(viewsets.ModelViewSet):
     queryset = ChatRoom.objects.all()
@@ -449,14 +450,14 @@ class MessageViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        # redis_client.publish(
-        #     'message_events',
-        #     json.dumps({
-        #         'event': 'edit_message',
-        #         'roomId': str(room_id),
-        #         'data': serializer.data
-        #     })
-        # )
+        redis_client.publish(
+            'message_events',
+            json.dumps({
+                'event': 'edit_message',
+                'roomId': str(room_id),
+                'data': serializer.data
+            })
+        )
         return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):
@@ -502,12 +503,14 @@ class MessageViewSet(viewsets.ModelViewSet):
         message.last_deleted_at = timezone.now()
         message.save()
 
+        message_data = MessageSerializer(message).data
+
         redis_client.publish(
             'message_events',
             json.dumps({
                 'event': 'delete_message',
                 'roomId': str(room_id),
-                'data': {'messageId': message_id}
+                'data': message_data
             })
         )
 
@@ -564,10 +567,26 @@ class MessageViewSet(viewsets.ModelViewSet):
             #     'room_events',
             #     json.dumps({
             #         'event': 'mark_read',
-            #         'roomId': str(room_id),
-            #         'data': {'userId': user.id}
+            #         # 'roomId': str(room_id),
+            #         'data': {'user': user,'roomId': room_id}
             #     })
             # )
+
+            redis_client.publish(
+                'room_events',
+                json.dumps({
+                    'event': 'mark_read',
+                    'roomId': str(room_id),
+                    'data': {
+                        'user': {
+                            'id': user.id,
+                            'first_name': user.first_name,
+                            'last_name': user.last_name,
+                        },
+                        'roomId': room_id
+                    }
+                })
+            )
                 
         except Exception as e:
             return Response(

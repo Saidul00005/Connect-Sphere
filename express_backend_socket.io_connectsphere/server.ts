@@ -23,19 +23,28 @@ interface CustomSocket extends Socket {
 }
 
 interface MessageEvent {
-  event: 'new_message' | 'room_event';
+  event: 'new_message' | 'delete_message' | 'edit_message';
+  roomId: string;
+  data: any;
+}
+
+interface RoomEvent {
+  event: 'mark_read';
   roomId: string;
   data: any;
 }
 
 interface ClientToServerEvents {
   join: (roomId: string) => void;
-  send_message: (message: MessageEvent) => void;
+  // send_message: (message: MessageEvent) => void;
 }
 
 interface ServerToClientEvents {
   new_message: (message: MessageEvent) => void;
-  room_event: (event: MessageEvent) => void;
+  delete_message: (message: MessageEvent) => void;
+  edit_message: (message: MessageEvent) => void;
+  // room_event: (event: MessageEvent) => void;
+  mark_read: (data: { roomId: string; user: { id: number; first_name: string; last_name: string } }) => void;
 }
 
 declare global {
@@ -44,21 +53,32 @@ declare global {
       NEXT_FRONTEND_URL: string;
       REDIS_URL: string;
       JWT_SECRET_KEY: string;
+      PORT: string;
     }
   }
 }
 
 const app = express();
-app.use(cors({ origin: '*' }));
+app.use(cors({
+  origin: ['*']
+}));
 const httpServer = createServer(app);
 
 
 const redisPub = createClient({
   url: process.env.REDIS_URL,
+  // socket: {
+  //   // tls: true,
+  //   rejectUnauthorized: false
+  // }
   socket: {
-    tls: true,
-    rejectUnauthorized: false
-  }
+    connectTimeout: 10000,
+    keepAlive: 5000,
+    reconnectStrategy: (retries) => {
+      console.log(`Reconnecting to Redis... Attempt #${retries}`);
+      return Math.min(retries * 100, 3000);
+    },
+  },
 });
 
 const redisSub = redisPub.duplicate();
@@ -78,10 +98,12 @@ async function startServer() {
         origin: process.env.NEXT_FRONTEND_URL,
         methods: ['GET', 'POST'],
         credentials: true,
-        allowedHeaders: ["Authorization", "Content-Type"],
+        // allowedHeaders: ["Authorization", "Content-Type"],
       },
       path: '/socket.io',
       transports: ['websocket', 'polling'],
+      pingInterval: 25000,
+      pingTimeout: 50000,
       adapter: createAdapter(redisPub, redisSub),
       connectionStateRecovery: {
         maxDisconnectionDuration: 2 * 60 * 1000
@@ -96,20 +118,23 @@ async function startServer() {
     const MESSAGE_CHANNEL = 'message_events';
     const ROOM_CHANNEL = 'room_events';
 
-    redisSub.on('message', (channel: string, message: string) => {
+    await redisSub.subscribe(MESSAGE_CHANNEL, (message: string) => {
       try {
         const parsedMessage: MessageEvent = JSON.parse(message);
-        if (channel === MESSAGE_CHANNEL || channel === ROOM_CHANNEL) {
-          io.to(parsedMessage.roomId).emit(parsedMessage.event, parsedMessage.data);
-        }
+        io.to(parsedMessage.roomId).emit(parsedMessage.event, parsedMessage.data);
       } catch (error) {
         console.error('Error processing Redis message:', error);
       }
     });
 
-    await redisSub.subscribe(MESSAGE_CHANNEL, (message) => { });
-    await redisSub.subscribe(ROOM_CHANNEL, (message) => { });
-    console.log('Subscribed to Redis channels');
+    await redisSub.subscribe(ROOM_CHANNEL, (data: string) => {
+      try {
+        const parsedData: RoomEvent = JSON.parse(data);
+        io.to(parsedData.roomId).emit(parsedData.event, parsedData.data);
+      } catch (error) {
+        console.error('Error processing Redis message:', error);
+      }
+    });
 
     const verifyToken = (token: string): Promise<DecodedToken> => {
       return new Promise((resolve, reject) => {
@@ -130,6 +155,7 @@ async function startServer() {
           id: decoded.user_id,
           email: decoded.email
         };
+        console.log(`User ${socket.user.id} authenticated`);
         next();
       } catch (err) {
         next(new Error('Authentication failed'));
@@ -143,17 +169,7 @@ async function startServer() {
 
       socket.on('join', (roomId: string) => {
         socket.join(roomId);
-      });
-
-      socket.on('send_message', async (message: MessageEvent) => {
-        await redisPub.publish(
-          MESSAGE_CHANNEL,
-          JSON.stringify({
-            event: 'new_message',
-            roomId: message.roomId,
-            data: message.data
-          })
-        );
+        console.log(`User ${socket.user?.id} joined room: ${roomId}`);
       });
 
       socket.on('disconnect', () => {
@@ -174,8 +190,20 @@ async function startServer() {
 
     const PORT = parseInt(process.env.PORT || '3001');
 
-    httpServer.listen(PORT, '0.0.0.0', () => {
+    httpServer.listen(PORT, () => {
       console.log(`Socket server running on port ${PORT}`);
+    });
+
+    process.on('SIGINT', async () => {
+      console.log('Shutting down server...');
+
+      await redisPub.quit();
+      await redisSub.quit();
+
+      httpServer.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+      });
     });
   } catch (error) {
     console.error('Failed to start server:', error);
