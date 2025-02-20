@@ -18,6 +18,7 @@ export interface Message {
   last_restore_at: string;
   is_delivered: boolean;
   is_sent: boolean;
+  sender_exists: boolean;
 }
 
 export interface MessageResponse {

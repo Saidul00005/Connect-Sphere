@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import type { ChatRoom, User } from '@/app/dashboard/chat/chat-history/types/chatHistoryTypes';
 
@@ -52,19 +52,24 @@ export const addParticipants = createAsyncThunk(
     participants: User[]
   }, { rejectWithValue, getState }) => {
     try {
+      const response = await axios.post('/api/chat/rooms/addParticipants', {
+        room_id: roomId,
+        user_ids: participants.map((p) => p.id),
+      });
+
+      if (response.data.message !== 'Participants added successfully') {
+        throw new Error(response.data.error || 'Unexpected server response');
+      }
+
       const state = getState() as { singleChatRoom: SingleChatRoomState };
       const existingRoom = state.singleChatRoom.rooms[roomId];
 
       if (existingRoom) {
-        return { roomId, participants, temporary: true };
+        return { roomId, participants };
+      } else {
+        return {};
       }
 
-      const response = await axios.post('/api/chat/rooms/addParticipants', {
-        room_id: roomId,
-        user_ids: participants.map(p => p.id),
-      });
-
-      return { roomId, participants: response.data.added_participants };
     } catch (error: any) {
       if (error.response) {
         return rejectWithValue(error.response.data);
@@ -98,7 +103,37 @@ export const removeParticipant = createAsyncThunk(
 const singleChatRoomSlice = createSlice({
   name: 'singleChatRoom',
   initialState,
-  reducers: {},
+  reducers: {
+    socketAddParticipants: (state, action: PayloadAction<{ roomId: number, participants: User[] }>) => {
+      const room = state.rooms[action.payload.roomId];
+      if (room) {
+        // const existingIds = new Set(room.participants.map((p: User) => p.id));
+        // const newParticipants = action.payload.participants.filter((p: User) => !existingIds.has(p.id));
+        // room.participants.push(...newParticipants);
+        // // room.participants = [...room.participants, ...newParticipants];
+        // // room.participants = [
+        // //   ...room.participants,
+        // //   ...action.payload.participants.filter(id =>
+        // //     !room.participants.some(p => p.id === id))
+        // // ]
+        const room = state.rooms[action.payload.roomId];
+        if (room) {
+          const existingIds = new Set(room.participants.map(p => p.id));
+          const newParticipants = action.payload.participants.filter(p =>
+            !existingIds.has(p.id)
+          );
+          room.participants = [...room.participants, ...newParticipants];
+        }
+      }
+    },
+    socketRemoveParticipant: (state, action: PayloadAction<{ roomId: number, userId: number }>) => {
+      const { roomId, userId } = action.payload;
+      const room = state.rooms[roomId];
+      if (room) {
+        room.participants = room.participants.filter(p => p.id !== userId);
+      }
+    }
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchSingleChatRoom.pending, (state) => {
@@ -126,7 +161,8 @@ const singleChatRoomSlice = createSlice({
           'Failed to fetch chat room details';
       })
       .addCase(addParticipants.fulfilled, (state, action) => {
-        const { roomId, participants, temporary } = action.payload;
+        if (!action.payload.roomId || !action.payload.participants) return;
+        const { roomId, participants } = action.payload;
 
         const room = state.rooms[roomId];
 
@@ -134,11 +170,7 @@ const singleChatRoomSlice = createSlice({
           const existingIds = new Set(room.participants.map((p: User) => p.id));
           const newParticipants = participants.filter((p: User) => !existingIds.has(p.id));
 
-          if (temporary) {
-            room.participants = [...room.participants, ...newParticipants];
-          } else if (participants) {
-            room.participants = [...room.participants, ...newParticipants];
-          }
+          room.participants = [...room.participants, ...newParticipants];
         }
       })
       .addCase(removeParticipant.fulfilled, (state, action) => {
@@ -154,4 +186,5 @@ const singleChatRoomSlice = createSlice({
   },
 });
 
+export const { socketAddParticipants, socketRemoveParticipant } = singleChatRoomSlice.actions
 export default singleChatRoomSlice.reducer;

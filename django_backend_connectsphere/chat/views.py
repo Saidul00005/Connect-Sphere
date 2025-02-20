@@ -18,8 +18,8 @@ import json
 
 REDIS_URL = os.getenv("REDIS_URL")
 
-# redis_client = redis.Redis.from_url(REDIS_URL,ssl_cert_reqs=None )
-redis_client = redis.Redis.from_url(REDIS_URL)
+redis_client = redis.Redis.from_url(REDIS_URL,ssl_cert_reqs=None )
+# redis_client = redis.Redis.from_url(REDIS_URL)
 
 class ChatRoomViewSet(viewsets.ModelViewSet):
     queryset = ChatRoom.objects.all()
@@ -65,11 +65,15 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             output_field=IntegerField()
         )
         ).filter(is_deleted=False)
+
+        # chatrooms = chatrooms.filter(participants=user)
         
         return chatrooms.order_by('-last_modified_at','-created_at','-id')
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
+
+        queryset = queryset.filter(participants=request.user)
         
         if not hasattr(request.user, 'role') or request.user.role is None:
             raise PermissionDenied("You do not have permission to view chat rooms.")
@@ -90,7 +94,8 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             direct_filter = Q(type='DIRECT') & (
                 Q(participants__first_name__icontains=search_query) |
                 Q(participants__last_name__icontains=search_query)
-            ) & ~Q(participants__id=user.id)  
+            )
+            #  & ~Q(participants__id=user.id)  
             
             group_filter = Q(type='GROUP') & Q(name__icontains=search_query)
             
@@ -235,6 +240,24 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         
         room.participants.add(*user_ids)
 
+        new_users = User.objects.filter(id__in=user_ids)
+        users_info = [
+            {"id": user.id, "first_name": user.first_name, "last_name": user.last_name}
+            for user in new_users
+        ]
+
+        redis_client.publish(
+            'room_events',
+            json.dumps({
+                'event': 'participants_added',
+                'roomId': str(room.id),
+                'data': {
+                    'users': users_info,
+                    'roomId': room.id
+                }
+            })
+        )
+
         return Response({'message': 'Participants added successfully'}, status=status.HTTP_200_OK)
 
     def update(self, request, *args, **kwargs):
@@ -275,6 +298,18 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         chatroom.is_restored = False
         chatroom.save()
 
+        try:    
+            redis_client.publish(
+                'room_events',
+                json.dumps({
+                    'event': 'room_deleted',
+                    'roomId': str(chatroom.id),
+                    'data': {'roomId': chatroom.id}
+                })
+            )
+        except redis.exceptions.ConnectionError as e:
+            print(f"Redis publish failed: {e}")  
+
         return Response({'message': 'Chatroom successfully deleted (soft delete)'},
                         status=status.HTTP_200_OK)
 
@@ -295,8 +330,6 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 
         return Response({'message': 'Chatroom successfully restored'}, status=status.HTTP_200_OK)
 
-
-    # Add to ChatRoomViewSet in views.py
     @action(detail=True, methods=['post'])
     def remove_participant_for_chatroom_admin(self, request, pk=None):
 
@@ -344,6 +377,22 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         chatroom.participants.remove(user_to_remove)
         chatroom.last_modified_at = timezone.now()
         chatroom.save()
+
+        redis_client.publish(
+            'room_events',
+            json.dumps({
+                'event': 'participant_removed',
+                'roomId': str(chatroom.id),
+                'data': {
+                        'user': {
+                            'id': user_to_remove.id,
+                            'first_name': user_to_remove.first_name,
+                            'last_name': user_to_remove.last_name,
+                        },
+                        'roomId': chatroom.id
+                    }
+            })
+        )
 
         return Response(
             {'message': f'Participant {user_id} removed successfully'},

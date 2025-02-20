@@ -3,7 +3,7 @@
 import { use, useEffect, useCallback, useState, useRef } from "react"
 import { useAppDispatch, useAppSelector } from "@/app/redux/store"
 import { fetchMessages, editMessage, deleteMessage, resetMessages, markMessagesAsRead, addMessage, deleteMessageSuccess, socketMarkMessagesRead, socketEditMessage } from "@/app/redux/slices/chatMessagesSlice"
-import { fetchSingleChatRoom, removeParticipant } from "@/app/redux/slices/chatRoomSlice"
+import { fetchSingleChatRoom, removeParticipant, socketRemoveParticipant, socketAddParticipants } from "@/app/redux/slices/chatRoomSlice"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -27,7 +27,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import EmployeeDetailsForUsers from "../components/EmployeeDetailsForUsers"
-import { io } from 'socket.io-client';
+import { useSocket } from "@/lib/socket-context"
 
 
 interface ChatRoomPageProps {
@@ -36,6 +36,7 @@ interface ChatRoomPageProps {
 
 export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   const { roomId } = use(params)
+  const socket = useSocket()
   const router = useRouter()
   const { data: session, status } = useSession({
     required: true,
@@ -75,67 +76,75 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   }, [status, dispatch])
 
   useEffect(() => {
-    const socket = io('http://localhost:3001', {
-      path: "/socket.io",
-      transports: ["websocket", "polling"],
-      autoConnect: true,
-      withCredentials: true,
-      reconnectionAttempts: 5,
-      auth: { token: session?.user?.token },
-      reconnectionDelay: 1000,
-      forceNew: true,
-      timeout: 20000
-    });
+    if (!socket) return
 
-    socket.on("connect", () => {
-      console.log("Connected to WebSocket server:", socket.id);
-    });
+    socket.emit('join', roomId)
 
-    socket.on("connect_error", (err) => {
-      console.error("WebSocket connection error:", err);
-    });
-
-
-    socket.emit('join', roomId);
-
-    socket.on('new_message', (message) => {
+    const handleSocketNewMessage = (message: any) => {
       if (Number(message.sender.id) !== Number(session?.user?.id)) {
-        dispatch(addMessage(message));
+        dispatch(addMessage(message))
         setTimeout(() => {
           scrollToBottom();
         }, 100);
       }
-    });
+    }
 
-    socket.on('delete_message', (message) => {
+    const handleSocketDeleteMessage = (message: any) => {
       if (Number(message.sender.id) !== Number(session?.user?.id)) {
-        dispatch(deleteMessageSuccess(message));
+        dispatch(deleteMessageSuccess(message))
       }
-    });
+    }
 
-    socket.on('mark_read', (data) => {
-      if (Number(data.user.id) !== Number(session?.user?.id)) {
+    const handleSocketMarkRead = (message: any) => {
+      if (Number(message.user.id) !== Number(session?.user?.id)) {
         dispatch(socketMarkMessagesRead({
-          roomId: Number(data.roomId),
-          user: {
-            id: Number(data.user.id),
-            first_name: data.user.first_name || '',
-            last_name: data.user.last_name || '',
-          }
+          roomId: Number(message.roomId),
+          user: message.user
+        }))
+      }
+    }
+
+    const handleSocketEditMessage = (message: any) => {
+      if (Number(message.sender.id) !== Number(session?.user?.id)) {
+        dispatch(socketEditMessage(message))
+      }
+    }
+
+    const handleSocketParticipantsAdded = (message: any) => {
+      if (Number(message.roomId) === Number(roomId)) {
+        dispatch(socketAddParticipants({
+          roomId: Number(message.roomId),
+          participants: message.users
         }));
       }
-    });
+    };
 
-    socket.on('edit_message', (message) => {
-      if (Number(message.sender.id) !== Number(session?.user?.id)) {
-        dispatch(socketEditMessage(message));
+    const handleSocketParticipantRemoved = (message: any) => {
+      if (Number(message.roomId) === Number(roomId)) {
+        dispatch(socketRemoveParticipant({
+          roomId: Number(message.roomId),
+          userId: message.user.id
+        }));
       }
-    });
+    };
+
+    socket.on('new_message', handleSocketNewMessage)
+    socket.on('delete_message', handleSocketDeleteMessage)
+    socket.on('mark_read', handleSocketMarkRead)
+    socket.on('edit_message', handleSocketEditMessage)
+    socket.on('participants_added', handleSocketParticipantsAdded)
+    socket.on('participant_removed', handleSocketParticipantRemoved)
 
     return () => {
-      socket.disconnect();
-    };
-  }, [roomId, session]);
+      socket.emit('leave', roomId)
+      socket.off('new_message', handleSocketNewMessage)
+      socket.off('delete_message', handleSocketDeleteMessage)
+      socket.off('mark_read', handleSocketMarkRead)
+      socket.off('edit_message', handleSocketEditMessage)
+      socket.off('participants_added', handleSocketParticipantsAdded)
+      socket.off('participant_removed', handleSocketParticipantRemoved)
+    }
+  }, [socket, roomId, session, dispatch])
 
   useEffect(() => {
     if (initialLoad.current && !loading && allMessages.length > 0) {
@@ -444,9 +453,15 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
                 const isCurrentUser = message.sender.id === Number(session?.user?.id)
                 return (
                   <div key={message.id} className={`flex flex-col ${isCurrentUser ? "items-end" : "items-start"}`}>
-                    <span className="text-xs text-muted-foreground mb-1 mx-3">
-                      {isCurrentUser ? "You" : message.sender?.first_name + " " + message.sender?.last_name}
-                    </span>
+                    {!message.sender_exists ? (
+                      <span className="text-xs italic text-muted-foreground">
+                        (Removed User) {message.sender?.first_name} {message.sender?.last_name}
+                      </span>
+                    ) :
+                      <span className="text-xs text-muted-foreground mb-1 mx-3">
+                        {isCurrentUser ? "You" : message.sender?.first_name + " " + message.sender?.last_name}
+                      </span>
+                    }
                     <div
                       className={`group relative max-w-[70%] rounded-2xl px-4 py-2 ${isCurrentUser ? "bg-primary text-primary-foreground" : "bg-muted"
                         } ${message.is_deleted ? "opacity-50" : ""}`}

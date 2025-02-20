@@ -29,7 +29,7 @@ interface MessageEvent {
 }
 
 interface RoomEvent {
-  event: 'mark_read';
+  event: 'mark_read' | 'room_deleted' | 'participants_added' | 'participant_removed';
   roomId: string;
   data: any;
 }
@@ -44,7 +44,10 @@ interface ServerToClientEvents {
   delete_message: (message: MessageEvent) => void;
   edit_message: (message: MessageEvent) => void;
   // room_event: (event: MessageEvent) => void;
-  mark_read: (data: { roomId: string; user: { id: number; first_name: string; last_name: string } }) => void;
+  mark_read: (message: RoomEvent) => void;
+  room_deleted: (message: RoomEvent) => void;
+  participants_added: (message: RoomEvent) => void;
+  participant_removed: (message: RoomEvent) => void;
 }
 
 declare global {
@@ -127,10 +130,14 @@ async function startServer() {
       }
     });
 
-    await redisSub.subscribe(ROOM_CHANNEL, (data: string) => {
+    await redisSub.subscribe(ROOM_CHANNEL, (message: string) => {
       try {
-        const parsedData: RoomEvent = JSON.parse(data);
-        io.to(parsedData.roomId).emit(parsedData.event, parsedData.data);
+        const parsedMessage: RoomEvent = JSON.parse(message);
+        if (parsedMessage.event === 'room_deleted') {
+          io.emit(parsedMessage.event, parsedMessage.data);
+        } else {
+          io.to(parsedMessage.roomId).emit(parsedMessage.event, parsedMessage.data);
+        }
       } catch (error) {
         console.error('Error processing Redis message:', error);
       }

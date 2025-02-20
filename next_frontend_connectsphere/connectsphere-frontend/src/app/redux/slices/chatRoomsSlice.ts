@@ -121,12 +121,6 @@ const chatRoomsSliceForUser = createSlice({
       state.allRooms = [];
       state.nextPage = null;
     },
-    // updateUnreadCount: (state, action: PayloadAction<number>) => {
-    //   const room = state.allRooms.find(r => r.id === action.payload);
-    //   if (room) {
-    //     room.unread_messages_count = 0;
-    //   }
-    // }
     updateUnreadCount: (state, action: PayloadAction<number>) => {
       state.allRooms = state.allRooms.map(room => {
         if (room.id === action.payload) {
@@ -135,6 +129,9 @@ const chatRoomsSliceForUser = createSlice({
         return room;
       });
       state.nextPage = null;
+    },
+    socketDeleteRoom: (state, action: PayloadAction<number>) => {
+      state.allRooms = state.allRooms.filter(room => room.id !== action.payload);
     }
   },
   extraReducers: (builder) => {
@@ -185,5 +182,5 @@ const chatRoomsSliceForUser = createSlice({
   },
 });
 
-export const { resetChatRooms, updateUnreadCount } = chatRoomsSliceForUser.actions;
+export const { resetChatRooms, updateUnreadCount, socketDeleteRoom } = chatRoomsSliceForUser.actions;
 export default chatRoomsSliceForUser.reducer;

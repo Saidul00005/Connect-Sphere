@@ -78,13 +78,14 @@ class ChatRoomSerializer(serializers.ModelSerializer):
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True) 
     read_by = UserSerializer(many=True, read_only=True)  
+    sender_exists = serializers.SerializerMethodField() 
 
     class Meta:
         model = Message
         fields = [
             'id', 'room', 'sender', 'content', 'timestamp', 'is_deleted', 
             'read_by', 'is_modified', 'last_modified_at', 'is_restored', 
-            'last_restore_at', 'is_delivered', 'is_sent'
+            'last_restore_at', 'is_delivered', 'is_sent','sender_exists'
         ]
         extra_kwargs = {
             'id': {'read_only': True},
@@ -98,8 +99,12 @@ class MessageSerializer(serializers.ModelSerializer):
             'is_sent': {'read_only': True},
         }
 
+    def get_sender_exists(self, instance):
+        return instance.sender in instance.room.participants.all()
+
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         if instance.is_deleted:
             representation['content'] = "This message was deleted"
         return representation
+

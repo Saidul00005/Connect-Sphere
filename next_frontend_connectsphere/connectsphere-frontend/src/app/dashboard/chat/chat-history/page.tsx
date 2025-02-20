@@ -5,7 +5,8 @@ import { useAppDispatch, useAppSelector } from "@/app/redux/store"
 import {
   fetchChatRooms,
   resetChatRooms,
-  deleteChatRoom
+  deleteChatRoom,
+  socketDeleteRoom
 } from "@/app/redux/slices/chatRoomsSlice"
 import { Search, X, Trash2, UserPlus, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -27,8 +28,10 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { AddParticipants } from "@/app/dashboard/chat/chat-history/components/AddParticipants"
 import { useToast } from "@/hooks/use-toast"
+import { useSocket } from "@/lib/socket-context"
 
 export default function ChatHistory() {
+  const socket = useSocket()
   const router = useRouter()
   const { toast } = useToast()
   const { data: session, status } = useSession({
@@ -57,6 +60,20 @@ export default function ChatHistory() {
       dispatch(fetchChatRooms({ search: searchQuery }))
     }
   }, [status, searchQuery, dispatch])
+
+  useEffect(() => {
+    if (!socket) return
+
+    const handleRoomDeleted = (data: any) => {
+      dispatch(socketDeleteRoom(Number(data.roomId)))
+    }
+
+    socket.on("room_deleted", handleRoomDeleted)
+
+    return () => {
+      socket.off("room_deleted", handleRoomDeleted)
+    }
+  }, [socket, dispatch])
 
   const handleLoadMore = useCallback(() => {
     if (nextPage && !ChatroomListLoading) {
