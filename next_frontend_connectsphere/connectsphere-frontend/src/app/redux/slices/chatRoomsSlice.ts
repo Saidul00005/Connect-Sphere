@@ -132,7 +132,13 @@ const chatRoomsSliceForUser = createSlice({
     },
     socketDeleteRoom: (state, action: PayloadAction<number>) => {
       state.allRooms = state.allRooms.filter(room => room.id !== action.payload);
-    }
+    },
+    socketAddRoom: (state, action: PayloadAction<ChatRoom>) => {
+      const exists = state.allRooms.some(room => room.id === Number(action.payload.id));
+      if (!exists) {
+        state.allRooms.unshift(action.payload);
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -182,5 +188,5 @@ const chatRoomsSliceForUser = createSlice({
   },
 });
 
-export const { resetChatRooms, updateUnreadCount, socketDeleteRoom } = chatRoomsSliceForUser.actions;
+export const { resetChatRooms, updateUnreadCount, socketDeleteRoom, socketAddRoom } = chatRoomsSliceForUser.actions;
 export default chatRoomsSliceForUser.reducer;

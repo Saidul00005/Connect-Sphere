@@ -6,7 +6,8 @@ import {
   fetchChatRooms,
   resetChatRooms,
   deleteChatRoom,
-  socketDeleteRoom
+  socketDeleteRoom,
+  socketAddRoom,
 } from "@/app/redux/slices/chatRoomsSlice"
 import { Search, X, Trash2, UserPlus, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -64,13 +65,21 @@ export default function ChatHistory() {
   useEffect(() => {
     if (!socket) return
 
-    const handleRoomDeleted = (data: any) => {
-      dispatch(socketDeleteRoom(Number(data.roomId)))
+    const handleRoomCreated = (message: any) => {
+      dispatch(socketAddRoom(message));
+    };
+
+    socket.on("room_created", handleRoomCreated);
+
+
+    const handleRoomDeleted = (message: any) => {
+      dispatch(socketDeleteRoom(Number(message.roomId)))
     }
 
     socket.on("room_deleted", handleRoomDeleted)
 
     return () => {
+      socket.off("room_created", handleRoomCreated);
       socket.off("room_deleted", handleRoomDeleted)
     }
   }, [socket, dispatch])

@@ -29,25 +29,24 @@ interface MessageEvent {
 }
 
 interface RoomEvent {
-  event: 'mark_read' | 'room_deleted' | 'participants_added' | 'participant_removed';
+  event: 'mark_read' | 'room_deleted' | 'participants_added' | 'participant_removed' | 'room_created';
   roomId: string;
   data: any;
 }
 
 interface ClientToServerEvents {
   join: (roomId: string) => void;
-  // send_message: (message: MessageEvent) => void;
 }
 
 interface ServerToClientEvents {
   new_message: (message: MessageEvent) => void;
   delete_message: (message: MessageEvent) => void;
   edit_message: (message: MessageEvent) => void;
-  // room_event: (event: MessageEvent) => void;
   mark_read: (message: RoomEvent) => void;
   room_deleted: (message: RoomEvent) => void;
   participants_added: (message: RoomEvent) => void;
   participant_removed: (message: RoomEvent) => void;
+  room_created: (message: RoomEvent) => void;
 }
 
 declare global {
@@ -70,11 +69,9 @@ const httpServer = createServer(app);
 
 const redisPub = createClient({
   url: process.env.REDIS_URL,
-  // socket: {
-  //   // tls: true,
-  //   rejectUnauthorized: false
-  // }
   socket: {
+    tls: true,
+    rejectUnauthorized: false,
     connectTimeout: 10000,
     keepAlive: 5000,
     reconnectStrategy: (retries) => {
@@ -101,7 +98,7 @@ async function startServer() {
         origin: process.env.NEXT_FRONTEND_URL,
         methods: ['GET', 'POST'],
         credentials: true,
-        // allowedHeaders: ["Authorization", "Content-Type"],
+        allowedHeaders: ["Authorization", "Content-Type", 'X-Api-Key'],
       },
       path: '/socket.io',
       transports: ['websocket', 'polling'],
@@ -135,7 +132,10 @@ async function startServer() {
         const parsedMessage: RoomEvent = JSON.parse(message);
         if (parsedMessage.event === 'room_deleted') {
           io.emit(parsedMessage.event, parsedMessage.data);
-        } else {
+        } else if (parsedMessage.event === 'room_created') {
+          io.emit(parsedMessage.event, parsedMessage.data);
+        }
+        else {
           io.to(parsedMessage.roomId).emit(parsedMessage.event, parsedMessage.data);
         }
       } catch (error) {

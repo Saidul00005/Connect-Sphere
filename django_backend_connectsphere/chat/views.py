@@ -19,7 +19,6 @@ import json
 REDIS_URL = os.getenv("REDIS_URL")
 
 redis_client = redis.Redis.from_url(REDIS_URL,ssl_cert_reqs=None )
-# redis_client = redis.Redis.from_url(REDIS_URL)
 
 class ChatRoomViewSet(viewsets.ModelViewSet):
     queryset = ChatRoom.objects.all()
@@ -157,16 +156,36 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
                     existing_chat.save()
                     data = self.get_serializer(existing_chat).data
                     data['message'] = 'Chatroom restored successfully.'
-                    return Response(data, status=status.HTTP_200_OK)
+                    print("Restored direct chatroom data:", data) 
+                    
                 else:
                     data = self.get_serializer(existing_chat).data
                     data['message'] = 'Chatroom already exists.'
-                    return Response(data, status=status.HTTP_200_OK)
+                
+                redis_client.publish(
+                'room_events',
+                    json.dumps({
+                        'event': 'room_created',
+                        'roomId':str(existing_chat.id),
+                        'data': data  
+                    })
+                )
+
+                return Response(data, status=status.HTTP_200_OK)
             
             serializer.validated_data['name'] = None 
             chatroom = serializer.save(created_by=user, participants_hash=participants_hash)
             chatroom.participants.add(user, other_user_id)
             data = self.get_serializer(chatroom).data
+
+            redis_client.publish(
+                'room_events',
+                json.dumps({
+                    'event': 'room_created',
+                    'roomId': str(chatroom.id),
+                    'data': data  
+                })
+            )
             return Response(data, status=status.HTTP_201_CREATED)
 
         elif chat_type == 'GROUP':
@@ -189,6 +208,15 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             )
             chatroom.participants.add(user, *participants)
             data = self.get_serializer(chatroom).data
+
+            redis_client.publish(
+                'room_events',
+                json.dumps({
+                    'event': 'room_created',
+                    'roomId':str(chatroom.id),
+                    'data': data
+                })
+            )
             return Response(data, status=status.HTTP_201_CREATED)
         else:
             return Response(
