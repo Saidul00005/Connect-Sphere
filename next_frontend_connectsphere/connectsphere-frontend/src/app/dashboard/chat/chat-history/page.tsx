@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useState, useRef, useCallback, useMemo } from "react"
 import { useAppDispatch, useAppSelector } from "@/app/redux/store"
 import {
   fetchChatRooms,
@@ -8,6 +8,11 @@ import {
   deleteChatRoom,
   socketDeleteRoom,
   socketAddRoom,
+  socketUpdateLastMessage,
+  socketEditLastMessage,
+  socketDeleteLastMessage,
+  socketMarkLastMessageRead,
+  promoteUnreadRoom
 } from "@/app/redux/slices/chatRoomsSlice"
 import { Search, X, Trash2, UserPlus, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -30,6 +35,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { AddParticipants } from "@/app/dashboard/chat/chat-history/components/AddParticipants"
 import { useToast } from "@/hooks/use-toast"
 import { useSocket } from "@/lib/socket-context"
+import { ChatRoom } from "@/app/dashboard/chat/chat-history/types/chatHistoryTypes";
 
 export default function ChatHistory() {
   const socket = useSocket()
@@ -44,7 +50,6 @@ export default function ChatHistory() {
   const dispatch = useAppDispatch()
   const {
     allRooms,
-    nextPage,
     loading: ChatroomListLoading,
     error: ChatroomListError
   } = useAppSelector((state) => state.chatRooms)
@@ -54,13 +59,36 @@ export default function ChatHistory() {
   const [showAddParticipants, setShowAddParticipants] = useState(false)
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
   const [deletingRooms, setDeletingRooms] = useState<number[]>([])
+  const [displayedRooms, setDisplayedRooms] = useState<ChatRoom[]>([]);
+  const [visibleCount, setVisibleCount] = useState(10);
 
   useEffect(() => {
-    if (status === "authenticated") {
+    if (status === "authenticated" && allRooms.length === 0) {
       dispatch(resetChatRooms())
-      dispatch(fetchChatRooms({ search: searchQuery }))
+      dispatch(fetchChatRooms())
     }
-  }, [status, searchQuery, dispatch])
+  }, [status, dispatch])
+
+  const filteredRooms = useMemo(() => {
+    if (!searchQuery) return allRooms;
+
+    return allRooms.filter(room => {
+      const searchLower = searchQuery.toLowerCase();
+      if (room.type === "GROUP") {
+        return room.name?.toLowerCase().includes(searchLower);
+      }
+      return room.participants.some(participant =>
+        `${participant.first_name} ${participant.last_name}`
+          .toLowerCase()
+          .includes(searchLower)
+      );
+    });
+
+  }, [allRooms, searchQuery]);
+
+  useEffect(() => {
+    setDisplayedRooms(filteredRooms.slice(0, visibleCount));
+  }, [filteredRooms, visibleCount]);
 
   useEffect(() => {
     if (!socket) return
@@ -78,19 +106,71 @@ export default function ChatHistory() {
 
     socket.on("room_deleted", handleRoomDeleted)
 
+    const handleSocketNewMessage = (message: any) => {
+      dispatch(socketUpdateLastMessage({
+        roomId: Number(message.room), message: {
+          'id': message.id,
+          'content': message.content,
+          'timestamp': message.timestamp,
+          'sender': message.sender,
+          'read_by': message.read_by,
+        }
+      }))
+      dispatch(promoteUnreadRoom({
+        roomId: Number(message.room),
+        userId: Number(session?.user?.id)
+      }));
+    }
+
+    socket.on('new_message', handleSocketNewMessage)
+
+    const handleSocketEditMessage = (message: any) => {
+      dispatch(socketEditLastMessage({
+        roomId: Number(message.room),
+        message: {
+          'id': message.id,
+          'content': message.content,
+          'timestamp': message.timestamp,
+          'sender': message.sender,
+          'read_by': message.read_by,
+        }
+      }));
+    }
+
+    socket.on('edit_message', handleSocketEditMessage)
+
+    const handleSocketDeleteMessage = (message: any) => {
+      dispatch(socketDeleteLastMessage({
+        roomId: Number(message.room),
+        messageId: Number(message.id)
+      }));
+
+    }
+
+    socket.on('delete_message', handleSocketDeleteMessage)
+
+    const handleSocketMarkRead = (message: any) => {
+      dispatch(socketMarkLastMessageRead({
+        roomId: Number(message.roomId),
+        user: message.user
+      }));
+    }
+
+    socket.on('mark_read', handleSocketMarkRead)
+
     return () => {
       socket.off("room_created", handleRoomCreated);
       socket.off("room_deleted", handleRoomDeleted)
+      socket.off('new_message', handleSocketNewMessage)
+      socket.off('edit_message', handleSocketEditMessage)
+      socket.off('delete_message', handleSocketDeleteMessage)
+      socket.off('mark_read', handleSocketMarkRead)
     }
   }, [socket, dispatch])
 
   const handleLoadMore = useCallback(() => {
-    if (nextPage && !ChatroomListLoading) {
-      if (status === "authenticated") {
-        dispatch(fetchChatRooms({ pageUrl: nextPage }));
-      }
-    }
-  }, [nextPage, ChatroomListLoading, status, dispatch]);
+    setVisibleCount(prev => prev + 10);
+  }, [])
 
   const handleSearchClick = useCallback(() => {
     if (searchInputRef.current) {
@@ -103,11 +183,7 @@ export default function ChatHistory() {
     if (searchInputRef.current) {
       searchInputRef.current.value = "";
     }
-    if (status === "authenticated") {
-      dispatch(resetChatRooms());
-      dispatch(fetchChatRooms({ pageUrl: null, search: "" }));
-    }
-  }, [status, dispatch]);
+  }, []);
 
   const handleDeleteClick = useCallback((e: React.MouseEvent, roomId: number) => {
     e.stopPropagation();
@@ -187,7 +263,7 @@ export default function ChatHistory() {
               {allRooms.length === 0 ? (
                 <div className="p-4 text-center text-muted-foreground">No chat rooms found.</div>
               ) : (
-                allRooms.map((room) => (
+                displayedRooms.map((room) => (
                   <div
                     key={room.id}
                     onClick={() => handleRoomSelect(room.id)}
@@ -197,17 +273,17 @@ export default function ChatHistory() {
                       <div>
                         <h3 className="font-medium flex items-center gap-2">
                           {room.name}
-                          {room.unread_messages_count > 0 && (
-                            <span className="inline-flex items-center justify-center w-6 h-6 bg-primary text-primary-foreground rounded-full text-xs">
-                              {room.unread_messages_count}
-                            </span>
-                          )}
                         </h3>
                         <p className="text-sm text-muted-foreground">
                           {room.type === "GROUP" ? "Group Chat" : "Direct Message"}
                         </p>
                         {room.last_message && (
-                          <p className="text-sm text-muted-foreground truncate mt-1">
+                          <p
+                            className={`text-sm ${room.last_message.read_by?.some(user => user.id === Number(session?.user?.id))
+                              ? 'font-normal'
+                              : 'font-bold'
+                              } text-muted-foreground truncate mt-1`}
+                          >
                             {`${room.last_message.sender.first_name}: ${room.last_message.content}`}
                           </p>
                         )}
@@ -266,20 +342,11 @@ export default function ChatHistory() {
             </>
           )}
         </ScrollArea>
-
-        {nextPage && (
+        {visibleCount < filteredRooms.length && (
           <div className="flex justify-center p-4">
-            <Button
-              onClick={handleLoadMore}
-              disabled={ChatroomListLoading}
-              variant="secondary"
-              className="w-32"
-            >
-              {ChatroomListLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Load More"
-              )}
+            <Button onClick={handleLoadMore} variant="secondary"
+              className="w-50">
+              Load More ({filteredRooms.length - visibleCount} remaining)
             </Button>
           </div>
         )}

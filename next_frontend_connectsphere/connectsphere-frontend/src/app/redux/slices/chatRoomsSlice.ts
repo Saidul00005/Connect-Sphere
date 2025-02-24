@@ -2,15 +2,16 @@ import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import axios from "axios";
 import {
   ChatRoomState,
-  FetchChatRoomsParams,
   ChatRoomResponse,
-  ChatRoom
+  ChatRoom,
+  Message
 } from "@/app/dashboard/chat/chat-history/types/chatHistoryTypes";
+import type { User } from "@/app/dashboard/chat/chat-history/types/chatHistoryTypes"
 import { RootState } from "@/app/redux/store";
 
 const initialState: ChatRoomState = {
   allRooms: [],
-  nextPage: null,
+  displayedCount: 10,
   loading: false,
   error: null,
 };
@@ -30,21 +31,13 @@ export interface CreateChatRoomResponse {
 
 export const fetchChatRooms = createAsyncThunk<
   ChatRoomResponse,
-  FetchChatRoomsParams,
+  void,
   { rejectValue: string; state: RootState }
 >(
   "chatRooms/fetch",
-  async ({ pageUrl, search }, { rejectWithValue }) => {
+  async (_, { rejectWithValue }) => {
     try {
-      let url = pageUrl || '/api/chat/rooms/';
-
-      if (!pageUrl) {
-        const params = new URLSearchParams();
-        if (search) params.set('search', search);
-        url = `/api/chat/rooms/?${params.toString()}`;
-      }
-
-      const response = await axios.get<ChatRoomResponse>(url);
+      const response = await axios.get<ChatRoomResponse>(`/api/chat/rooms/`);
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -119,16 +112,6 @@ const chatRoomsSliceForUser = createSlice({
   reducers: {
     resetChatRooms: (state) => {
       state.allRooms = [];
-      state.nextPage = null;
-    },
-    updateUnreadCount: (state, action: PayloadAction<number>) => {
-      state.allRooms = state.allRooms.map(room => {
-        if (room.id === action.payload) {
-          return { ...room, unread_messages_count: 0 };
-        }
-        return room;
-      });
-      state.nextPage = null;
     },
     socketDeleteRoom: (state, action: PayloadAction<number>) => {
       state.allRooms = state.allRooms.filter(room => room.id !== action.payload);
@@ -139,6 +122,69 @@ const chatRoomsSliceForUser = createSlice({
         state.allRooms.unshift(action.payload);
       }
     },
+    socketUpdateLastMessage: (
+      state,
+      action: PayloadAction<{ roomId: number; message: Message }>
+    ) => {
+      const room = state.allRooms.find(r => r.id === action.payload.roomId);
+      if (room) {
+        room.last_message = action.payload.message;
+      }
+    },
+    socketEditLastMessage: (
+      state,
+      action: PayloadAction<{ roomId: number; message: Message }>
+    ) => {
+      const room = state.allRooms.find((r) => r.id === action.payload.roomId);
+      if (room && room.last_message?.id === action.payload.message.id) {
+        room.last_message.content = action.payload.message.content;
+      }
+    },
+    socketDeleteLastMessage: (
+      state,
+      action: PayloadAction<{ roomId: number; messageId: number }>
+    ) => {
+      const room = state.allRooms.find((r) => r.id === action.payload.roomId);
+      if (room && room.last_message?.id === action.payload.messageId) {
+        room.last_message.content = "This message was deleted";
+      }
+    },
+    socketMarkLastMessageRead: (
+      state,
+      action: PayloadAction<{ roomId: number; user: User }>
+    ) => {
+      const room = state.allRooms.find(r => r.id === action.payload.roomId);
+      if (room?.last_message) {
+        const exists = room.last_message.read_by.some(
+          u => u.id === action.payload.user.id
+        );
+        if (!exists) {
+          room.last_message.read_by = [
+            ...room.last_message.read_by,
+            action.payload.user
+          ];
+        }
+      }
+    },
+    promoteUnreadRoom: (state, action: PayloadAction<{ roomId: number, userId: number }>) => {
+      const roomId = action.payload.roomId;
+      const currentUserId = action.payload.userId;
+
+      const roomIndex = state.allRooms.findIndex(room => room.id === roomId);
+      if (roomIndex === -1) return;
+
+      const room = state.allRooms[roomIndex];
+      const isUnread = room.last_message &&
+        !room.last_message.read_by.some(user => user.id === currentUserId);
+
+      if (isUnread) {
+        state.allRooms = [
+          room,
+          ...state.allRooms.slice(0, roomIndex),
+          ...state.allRooms.slice(roomIndex + 1)
+        ];
+      }
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -148,14 +194,8 @@ const chatRoomsSliceForUser = createSlice({
       })
       .addCase(fetchChatRooms.fulfilled, (state, action) => {
         state.loading = false;
-        const { results, next } = action.payload;
-
-        if (action.meta.arg.pageUrl) {
-          state.allRooms = [...state.allRooms, ...results];
-        } else {
-          state.allRooms = results;
-        }
-        state.nextPage = next;
+        state.allRooms = action.payload.results;
+        state.displayedCount = 10;
       })
       .addCase(fetchChatRooms.rejected, (state, action) => {
         state.loading = false;
@@ -188,5 +228,5 @@ const chatRoomsSliceForUser = createSlice({
   },
 });
 
-export const { resetChatRooms, updateUnreadCount, socketDeleteRoom, socketAddRoom } = chatRoomsSliceForUser.actions;
+export const { resetChatRooms, socketDeleteRoom, socketAddRoom, socketUpdateLastMessage, socketEditLastMessage, socketDeleteLastMessage, socketMarkLastMessageRead, promoteUnreadRoom } = chatRoomsSliceForUser.actions;
 export default chatRoomsSliceForUser.reducer;

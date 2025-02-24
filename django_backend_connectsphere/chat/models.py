@@ -28,6 +28,14 @@ class ChatRoom(models.Model):
     last_restore_at = models.DateTimeField(null=True, blank=True)
     participants_hash = models.CharField(max_length=64, blank=True, null=True, db_index=True)
 
+    last_message = models.ForeignKey(
+        'Message', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='chatroom_last_message'
+    )
+
     class Meta:
         constraints = [
             models.UniqueConstraint(

@@ -10,7 +10,6 @@ import type {
   User
 } from "@/app/dashboard/chat/chat-history/types/chatHistoryTypes"
 import { RootState } from "../store";
-import { updateUnreadCount } from "@/app/redux/slices/chatRoomsSlice";
 
 const initialState: ChatMessageState = {
   allMessages: [],
@@ -120,8 +119,6 @@ export const markMessagesAsRead = createAsyncThunk<
       await axios.post("/api/chat/messages/mark_as_read", { room_id: roomId });
 
       dispatch(markMessagesRead({ roomId, user }));
-
-      dispatch(updateUnreadCount(roomId));
 
     } catch (error) {
       if (axios.isAxiosError(error)) {

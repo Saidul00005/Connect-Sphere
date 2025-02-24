@@ -12,13 +12,13 @@ class ChatRoomSerializer(serializers.ModelSerializer):
     created_by = UserSerializer(read_only=True) 
     participants = UserSerializer(many=True, read_only=True) 
     last_message = serializers.SerializerMethodField() 
-    unread_messages_count = serializers.IntegerField(read_only=True)
+    # unread_messages_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = ChatRoom
         fields = [
             'id', 'name', 'type', 'created_by', 'participants', 'created_at', 
-            'is_active', 'last_message', 'unread_messages_count', 'is_deleted', 
+            'is_active', 'last_message', 'is_deleted', 
             'last_deleted_at', 'is_restored', 'last_restore_at'
         ]
         extra_kwargs = {
@@ -45,35 +45,52 @@ class ChatRoomSerializer(serializers.ModelSerializer):
 
     def get_last_message(self, obj):
 
-        last_message_id = getattr(obj, 'last_message_id', None)
-        if not last_message_id:
+        # last_message_id = getattr(obj, 'last_message_id', None)
+        # if not last_message_id:
+        #     return None  
+
+        # last_message_id = getattr(obj, 'last_message_id', None)
+        # last_message_content = getattr(obj, 'last_message_content', None)
+        # last_message_timestamp = getattr(obj, 'last_message_timestamp', None)
+        # last_message_is_deleted = getattr(obj, 'last_message_is_deleted', None)
+        # last_message_sender_id = getattr(obj, 'last_message_sender_id', None)
+        # last_message_sender_first_name = getattr(obj, 'last_message_sender_first_name', None)
+        # last_message_sender_last_name = getattr(obj, 'last_message_sender_last_name', None)
+
+        if not obj.last_message:
             return None  
 
-        last_message_id = getattr(obj, 'last_message_id', None)
-        last_message_content = getattr(obj, 'last_message_content', None)
-        last_message_timestamp = getattr(obj, 'last_message_timestamp', None)
-        last_message_is_deleted = getattr(obj, 'last_message_is_deleted', None)
-        last_message_sender_id = getattr(obj, 'last_message_sender_id', None)
-        last_message_sender_first_name = getattr(obj, 'last_message_sender_first_name', None)
-        last_message_sender_last_name = getattr(obj, 'last_message_sender_last_name', None)
+        message = obj.last_message
 
-        if obj.last_message_id:
-            return {
-                'id': obj.last_message_id,
-                'content': "This message was deleted" if obj.last_message_is_deleted else obj.last_message_content,
-                'timestamp': obj.last_message_timestamp,
-                'sender': {
-                    'id': obj.last_message_sender_id,
-                    'first_name': obj.last_message_sender_first_name,
-                    'last_name': obj.last_message_sender_last_name,
-                }
+        return {
+            'id': message.id,
+            'content': "This message was deleted" if message.is_deleted else message.content,
+            'timestamp': message.timestamp,
+            'read_by': UserSerializer(message.read_by.all(), many=True).data,
+            'sender': {
+                'id': message.sender.id,
+                'first_name': message.sender.first_name,
+                'last_name': message.sender.last_name,
             }
-        return None
+        }
+        
+        # if obj.last_message_id:
+        #     return {
+        #         'id': obj.last_message_id,
+        #         'content': "This message was deleted" if obj.last_message_is_deleted else obj.last_message_content,
+        #         'timestamp': obj.last_message_timestamp,
+        #         'sender': {
+        #             'id': obj.last_message_sender_id,
+        #             'first_name': obj.last_message_sender_first_name,
+        #             'last_name': obj.last_message_sender_last_name,
+        #         }
+        #     }
+        # return None
 
 
-    def get_unread_messages_count(self, obj):
-        # return getattr(obj, 'unread_messages_count', 0)
-        return obj.unread_messages_count or 0
+    # def get_unread_messages_count(self, obj):
+    #     # return getattr(obj, 'unread_messages_count', 0)
+    #     return obj.unread_messages_count or 0
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True) 

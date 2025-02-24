@@ -36,38 +36,9 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         queryset=User.objects.only('id', 'first_name', 'last_name')
         )
 
-        last_message_subquery = Message.objects.filter(
-            room=OuterRef('pk') 
-        ).order_by('-timestamp')
-
-        chatrooms = ChatRoom.objects.prefetch_related(prefetch_users).annotate(
-        last_message_id=Subquery(last_message_subquery.values('id')[:1]),
-        last_message_content=Subquery(last_message_subquery.values('content')[:1]),
-        last_message_timestamp=Subquery(last_message_subquery.values('timestamp')[:1]),
-        last_message_is_deleted=Subquery(last_message_subquery.values('is_deleted')[:1]),
-        last_message_sender_id=Subquery(last_message_subquery.values('sender__id')[:1]),
-        last_message_sender_first_name=Subquery(last_message_subquery.values('sender__first_name')[:1]),
-        last_message_sender_last_name=Subquery(last_message_subquery.values('sender__last_name')[:1]),
-        # unread_messages_count=Count(
-        #     'message',
-        #     filter=Q(message__is_deleted=False) & ~Q(message__read_by__id=user.id)
-        # )
-        unread_messages_count=Subquery(
-            Message.objects.filter(
-                room=OuterRef('pk'),
-                is_deleted=False
-            ).exclude(
-                read_by=user
-            ).values('room')
-            .annotate(count=Count('*'))
-            .values('count'),
-            output_field=IntegerField()
-        )
-        ).filter(is_deleted=False)
-
-        # chatrooms = chatrooms.filter(participants=user)
+        chatrooms = ChatRoom.objects.prefetch_related(prefetch_users).select_related('last_message__sender').filter(is_deleted=False)
         
-        return chatrooms.order_by('-last_modified_at','-created_at','-id')
+        return chatrooms.order_by('-last_message__timestamp','-created_at','-id')
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
@@ -77,40 +48,11 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         if not hasattr(request.user, 'role') or request.user.role is None:
             raise PermissionDenied("You do not have permission to view chat rooms.")
 
-        search_query = request.GET.get('search', None)
-
-        # filters = Q()
-        # if search_query:
-        #     filters &= Q(name__icontains=search_query)
-
-        # if filters:
-        #     queryset = queryset.filter(filters).order_by('last_modified_at','id')
-        # else:
-        #     queryset = queryset.order_by('last_modified_at','id')
-
-        if search_query:
-            user = request.user
-            direct_filter = Q(type='DIRECT') & (
-                Q(participants__first_name__icontains=search_query) |
-                Q(participants__last_name__icontains=search_query)
-            )
-            #  & ~Q(participants__id=user.id)  
-            
-            group_filter = Q(type='GROUP') & Q(name__icontains=search_query)
-            
-            queryset = queryset.filter(direct_filter | group_filter).distinct().order_by('last_modified_at','id')
-        else:
-            queryset = queryset.order_by('last_modified_at','id')
-
-
-        paginator = CursorChatroomPagination()
-        paginated_queryset = paginator.paginate_queryset(queryset, request)
-
-        if paginated_queryset is not None:
-            serializer = self.get_serializer(paginated_queryset, many=True)
-            return paginator.get_paginated_response(serializer.data)
-
-        return Response({"error": "Unable to paginate chatrooms."}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'results': serializer.data,
+            'count': queryset.count()
+        })
 
     def retrieve(self, request, *args, **kwargs):
         chatroom = self.get_object()
@@ -470,6 +412,8 @@ class MessageViewSet(viewsets.ModelViewSet):
 
         message = serializer.save(sender=self.request.user, is_sent=True, is_delivered=True)
         message.read_by.add(self.request.user)
+        message.room.last_message = message
+        message.room.save()
 
         message_data = MessageSerializer(message).data
         redis_client.publish(

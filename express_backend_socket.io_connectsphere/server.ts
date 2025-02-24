@@ -122,6 +122,7 @@ async function startServer() {
       try {
         const parsedMessage: MessageEvent = JSON.parse(message);
         io.to(parsedMessage.roomId).emit(parsedMessage.event, parsedMessage.data);
+        io.emit(parsedMessage.event, parsedMessage.data);
       } catch (error) {
         console.error('Error processing Redis message:', error);
       }

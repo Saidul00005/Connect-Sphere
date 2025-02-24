@@ -30,7 +30,7 @@ from urllib.parse import urlparse
 #         })
 
 class BaseCursorPagination(CursorPagination):
-    page_size = 10  # Default page size for all inheriting classes
+    page_size = 10 
     
     def _make_relative_url(self, link):
         if not link:
@@ -53,5 +53,5 @@ class CursorMessagePagination(BaseCursorPagination):
 
 
 class CursorChatroomPagination(BaseCursorPagination):
-    ordering = ('-last_modified_at','-created_at', '-id')  
+    ordering = ('-last_message__timestamp','-created_at', '-id')  
     # page_size = 6  # Uncomment to override default page size for this class

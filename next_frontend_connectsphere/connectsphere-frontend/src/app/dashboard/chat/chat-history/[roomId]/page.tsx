@@ -3,6 +3,7 @@
 import { use, useEffect, useCallback, useState, useRef } from "react"
 import { useAppDispatch, useAppSelector } from "@/app/redux/store"
 import { fetchMessages, editMessage, deleteMessage, resetMessages, markMessagesAsRead, addMessage, deleteMessageSuccess, socketMarkMessagesRead, socketEditMessage } from "@/app/redux/slices/chatMessagesSlice"
+import { socketUpdateLastMessage, socketEditLastMessage, socketDeleteLastMessage, socketMarkLastMessageRead, promoteUnreadRoom } from "@/app/redux/slices/chatRoomsSlice"
 import { fetchSingleChatRoom, removeParticipant, socketRemoveParticipant, socketAddParticipants } from "@/app/redux/slices/chatRoomSlice"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
@@ -81,18 +82,37 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
     socket.emit('join', roomId)
 
     const handleSocketNewMessage = (message: any) => {
+      console.log('new message', message)
       if (Number(message.sender.id) !== Number(session?.user?.id)) {
         dispatch(addMessage(message))
         setTimeout(() => {
           scrollToBottom();
         }, 100);
       }
+      dispatch(socketUpdateLastMessage({
+        roomId: Number(message.room), message: {
+          'id': message.id,
+          'content': message.content,
+          'timestamp': message.timestamp,
+          'sender': message.sender,
+          'read_by': message.read_by,
+        }
+      }));
+      dispatch(promoteUnreadRoom({
+        roomId: Number(message.room),
+        userId: Number(session?.user?.id)
+      }));
     }
 
     const handleSocketDeleteMessage = (message: any) => {
       if (Number(message.sender.id) !== Number(session?.user?.id)) {
         dispatch(deleteMessageSuccess(message))
       }
+      dispatch(socketDeleteLastMessage({
+        roomId: Number(message.room),
+        messageId: Number(message.id)
+      }));
+
     }
 
     const handleSocketMarkRead = (message: any) => {
@@ -102,12 +122,26 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
           user: message.user
         }))
       }
+      dispatch(socketMarkLastMessageRead({
+        roomId: Number(message.roomId),
+        user: message.user
+      }));
     }
 
     const handleSocketEditMessage = (message: any) => {
       if (Number(message.sender.id) !== Number(session?.user?.id)) {
         dispatch(socketEditMessage(message))
       }
+      dispatch(socketEditLastMessage({
+        roomId: Number(message.room),
+        message: {
+          'id': message.id,
+          'content': message.content,
+          'timestamp': message.timestamp,
+          'sender': message.sender,
+          'read_by': message.read_by,
+        }
+      }));
     }
 
     const handleSocketParticipantsAdded = (message: any) => {
