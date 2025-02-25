@@ -12,7 +12,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (session?.user?.token) {
-      const newSocket = io('http://localhost:3001', {
+      const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL!, {
         path: "/socket.io",
         transports: ["websocket", "polling"],
         autoConnect: true,
