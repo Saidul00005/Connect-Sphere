@@ -104,7 +104,7 @@ export const authOptions: NextAuthOptions = {
                 },
               }
             );
-            console.log(response.data)
+            // console.log(response.data)
             token.token = response.data.access;
             token.refreshToken = response.data.refresh
             token.accessTokenExpiry = Date.now() + 45 * 60 * 1000;

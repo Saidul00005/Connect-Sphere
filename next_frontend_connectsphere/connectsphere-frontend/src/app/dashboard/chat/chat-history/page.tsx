@@ -114,7 +114,7 @@ export default function ChatHistory() {
           'timestamp': message.timestamp,
           'sender': message.sender,
           'read_by': message.read_by,
-        }
+        }, userId: Number(session?.user?.id)
       }))
       dispatch(promoteUnreadRoom({
         roomId: Number(message.room),

@@ -103,15 +103,18 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
                 else:
                     data = self.get_serializer(existing_chat).data
                     data['message'] = 'Chatroom already exists.'
-                
-                redis_client.publish(
-                'room_events',
-                    json.dumps({
-                        'event': 'room_created',
-                        'roomId':str(existing_chat.id),
-                        'data': data  
-                    })
-                )
+
+                try:
+                    redis_client.publish(
+                    'room_events',
+                        json.dumps({
+                            'event': 'room_created',
+                            'roomId':str(existing_chat.id),
+                            'data': data  
+                        })
+                    )
+                except redis.exceptions.RedisError as e:
+                    logger.error(f"Redis publish failed: {e}") 
 
                 return Response(data, status=status.HTTP_200_OK)
             
@@ -120,14 +123,18 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             chatroom.participants.add(user, other_user_id)
             data = self.get_serializer(chatroom).data
 
-            redis_client.publish(
-                'room_events',
-                json.dumps({
-                    'event': 'room_created',
-                    'roomId': str(chatroom.id),
-                    'data': data  
-                })
-            )
+            try:
+                redis_client.publish(
+                    'room_events',
+                    json.dumps({
+                        'event': 'room_created',
+                        'roomId': str(chatroom.id),
+                        'data': data  
+                    })
+                )
+            except redis.exceptions.RedisError as e:
+                logger.error(f"Redis publish failed: {e}")
+
             return Response(data, status=status.HTTP_201_CREATED)
 
         elif chat_type == 'GROUP':
@@ -150,15 +157,19 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             )
             chatroom.participants.add(user, *participants)
             data = self.get_serializer(chatroom).data
-
-            redis_client.publish(
-                'room_events',
-                json.dumps({
-                    'event': 'room_created',
-                    'roomId':str(chatroom.id),
-                    'data': data
-                })
-            )
+            
+            try:
+                redis_client.publish(
+                    'room_events',
+                    json.dumps({
+                        'event': 'room_created',
+                        'roomId':str(chatroom.id),
+                        'data': data
+                    })
+                )
+            except redis.exceptions.RedisError as e:
+                logger.error(f"Redis publish failed: {e}")
+            
             return Response(data, status=status.HTTP_201_CREATED)
         else:
             return Response(
@@ -215,18 +226,21 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             {"id": user.id, "first_name": user.first_name, "last_name": user.last_name}
             for user in new_users
         ]
-
-        redis_client.publish(
-            'room_events',
-            json.dumps({
-                'event': 'participants_added',
-                'roomId': str(room.id),
-                'data': {
-                    'users': users_info,
-                    'roomId': room.id
-                }
-            })
-        )
+        
+        try:
+            redis_client.publish(
+                'room_events',
+                json.dumps({
+                    'event': 'participants_added',
+                    'roomId': str(room.id),
+                    'data': {
+                        'users': users_info,
+                        'roomId': room.id
+                    }
+                })
+            )
+        except redis.exceptions.RedisError as e:
+            logger.error(f"Redis publish failed: {e}") 
 
         return Response({'message': 'Participants added successfully'}, status=status.HTTP_200_OK)
 
@@ -347,22 +361,25 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         chatroom.participants.remove(user_to_remove)
         chatroom.last_modified_at = timezone.now()
         chatroom.save()
-
-        redis_client.publish(
-            'room_events',
-            json.dumps({
-                'event': 'participant_removed',
-                'roomId': str(chatroom.id),
-                'data': {
-                        'user': {
-                            'id': user_to_remove.id,
-                            'first_name': user_to_remove.first_name,
-                            'last_name': user_to_remove.last_name,
-                        },
-                        'roomId': chatroom.id
-                    }
-            })
-        )
+        
+        try:
+            redis_client.publish(
+                'room_events',
+                json.dumps({
+                    'event': 'participant_removed',
+                    'roomId': str(chatroom.id),
+                    'data': {
+                            'user': {
+                                'id': user_to_remove.id,
+                                'first_name': user_to_remove.first_name,
+                                'last_name': user_to_remove.last_name,
+                            },
+                            'roomId': chatroom.id
+                        }
+                })
+            )
+        except redis.exceptions.RedisError as e:
+            logger.error(f"Redis publish failed: {e}")
 
         return Response(
             {'message': f'Participant {user_id} removed successfully'},
@@ -416,14 +433,18 @@ class MessageViewSet(viewsets.ModelViewSet):
         message.room.save()
 
         message_data = MessageSerializer(message).data
-        redis_client.publish(
-            'message_events',
-            json.dumps({
-                'event': 'new_message',
-                'roomId': str(room_id),
-                'data': message_data
-            })
-        )
+
+        try:
+            redis_client.publish(
+                'message_events',
+                json.dumps({
+                    'event': 'new_message',
+                    'roomId': str(room_id),
+                    'data': message_data
+                })
+            )
+        except redis.exceptions.RedisError as e:
+            logger.error(f"Redis publish failed: {e}")
 
     def update(self, request, *args, **kwargs):
         message_id = kwargs.get('pk')
@@ -470,15 +491,19 @@ class MessageViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(message, data=request.data, partial=False)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-
-        redis_client.publish(
-            'message_events',
-            json.dumps({
-                'event': 'edit_message',
-                'roomId': str(room_id),
-                'data': serializer.data
-            })
-        )
+        
+        try:
+            redis_client.publish(
+                'message_events',
+                json.dumps({
+                    'event': 'edit_message',
+                    'roomId': str(room_id),
+                    'data': serializer.data
+                })
+            )
+        except redis.exceptions.RedisError as e:
+            logger.error(f"Redis publish failed: {e}")
+        
         return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):
@@ -525,16 +550,19 @@ class MessageViewSet(viewsets.ModelViewSet):
         message.save()
 
         message_data = MessageSerializer(message).data
-
-        redis_client.publish(
-            'message_events',
-            json.dumps({
-                'event': 'delete_message',
-                'roomId': str(room_id),
-                'data': message_data
-            })
-        )
-
+        
+        try:
+            redis_client.publish(
+                'message_events',
+                json.dumps({
+                    'event': 'delete_message',
+                    'roomId': str(room_id),
+                    'data': message_data
+                })
+            )
+        except redis.exceptions.RedisError as e:
+            logger.error(f"Redis publish failed: {e}")
+        
         return Response(
             {'message': 'Message soft deleted successfully'},
             status=status.HTTP_200_OK

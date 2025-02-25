@@ -68,13 +68,13 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   const initialRoomFetch = useRef(false)
   const initialLoad = useRef(true);
 
-  useEffect(() => {
-    return () => {
-      if (status === "authenticated") {
-        dispatch(resetMessages())
-      }
-    }
-  }, [status, dispatch])
+  // useEffect(() => {
+  //   return () => {
+  //     if (status === "authenticated") {
+  //       dispatch(resetMessages())
+  //     }
+  //   }
+  // }, [status, dispatch])
 
   useEffect(() => {
     if (!socket) return
@@ -82,7 +82,6 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
     socket.emit('join', roomId)
 
     const handleSocketNewMessage = (message: any) => {
-      console.log('new message', message)
       if (Number(message.sender.id) !== Number(session?.user?.id)) {
         dispatch(addMessage(message))
         setTimeout(() => {
@@ -96,7 +95,7 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
           'timestamp': message.timestamp,
           'sender': message.sender,
           'read_by': message.read_by,
-        }
+        }, userId: Number(session?.user?.id)
       }));
       dispatch(promoteUnreadRoom({
         roomId: Number(message.room),
@@ -213,7 +212,7 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   // }, []);
 
   useEffect(() => {
-    if (status === "authenticated" && !initialFetch.current) {
+    if (status === "authenticated" && !initialFetch.current && allMessages.length === 0) {
       initialFetch.current = true
       dispatch(fetchMessages({ pageUrl: null, roomId }))
     }

@@ -124,12 +124,27 @@ const chatRoomsSliceForUser = createSlice({
     },
     socketUpdateLastMessage: (
       state,
-      action: PayloadAction<{ roomId: number; message: Message }>
+      action: PayloadAction<{ roomId: number; message: Message, userId: number }>
     ) => {
-      const room = state.allRooms.find(r => r.id === action.payload.roomId);
-      if (room) {
-        room.last_message = action.payload.message;
-      }
+      const roomIndex = state.allRooms.findIndex(r => r.id === action.payload.roomId);
+      if (roomIndex === -1) return;
+
+      const updatedRoom = {
+        ...state.allRooms[roomIndex],
+        last_message: action.payload.message
+      };
+
+      const isUnread = !action.payload.message.read_by.some(u => u.id === action.payload.userId);
+
+      state.allRooms = isUnread
+        ? [
+          updatedRoom,
+          ...state.allRooms.slice(0, roomIndex),
+          ...state.allRooms.slice(roomIndex + 1)
+        ]
+        : state.allRooms.map((room, idx) =>
+          idx === roomIndex ? updatedRoom : room
+        );
     },
     socketEditLastMessage: (
       state,
