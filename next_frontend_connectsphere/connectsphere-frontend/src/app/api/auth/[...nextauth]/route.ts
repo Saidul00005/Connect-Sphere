@@ -90,13 +90,6 @@ export const authOptions: NextAuthOptions = {
         token.accessTokenExpiry = Date.now() + 45 * 60 * 1000; // Set expiry (45 minutes)
       }
 
-      // const isTokenExpired =
-      //   typeof token.accessTokenExpiry === "number" &&
-      //   Date.now() >= token.accessTokenExpiry;
-      // const isTokenNeartoExpiry =
-      //   typeof token.accessTokenExpiry === "number" &&
-      //   Date.now() >= token.accessTokenExpiry - 10 * 60 * 1000;
-
       if (token.accessTokenExpiry && typeof token.accessTokenExpiry === "number") {
         if (Date.now() > token.accessTokenExpiry) {
           try {
@@ -111,7 +104,7 @@ export const authOptions: NextAuthOptions = {
                 },
               }
             );
-            console.log(response.data)
+            // console.log(response.data)
             token.token = response.data.access;
             token.refreshToken = response.data.refresh
             token.accessTokenExpiry = Date.now() + 45 * 60 * 1000;

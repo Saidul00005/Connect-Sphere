@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card"
 import { CalendarDays, User2, Building2, Phone, MapPin, Trophy } from "lucide-react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { useSession } from "next-auth/react"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -93,7 +93,16 @@ const EmployeeDetailsForUsers = ({ userId }: EmployeeDetailsPageProps) => {
         <div className="p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row items-center gap-6">
             <Avatar className="h-24 w-24">
-              <AvatarFallback className="text-xl">{initials}</AvatarFallback>
+              {detail.profile_picture && (
+                <AvatarImage
+                  src={detail.profile_picture}
+                  alt={detail.full_name || ''}
+                  className="object-cover"
+                />
+              )}
+              <AvatarFallback className="text-xl">
+                {initials}
+              </AvatarFallback>
             </Avatar>
             <div className="text-center sm:text-left">
               <h1 className="text-xl font-bold text-foreground">{detail.full_name || ''}</h1>

@@ -11,18 +11,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const searchParams = request.nextUrl.searchParams;
-    const cursor = searchParams.get('cursor');
-    const search = searchParams.get('search');
+    // const searchParams = request.nextUrl.searchParams;
+    // const cursor = searchParams.get('cursor');
+    // const search = searchParams.get('search');
 
-    const baseUrl = `${process.env.BACKEND_URL}/api/chat/rooms/`;
+    // const baseUrl = `${process.env.BACKEND_URL}/api/chat/rooms/`;
 
-    const url = new URL(baseUrl);
+    // const url = new URL(baseUrl);
 
-    if (cursor) url.searchParams.set('cursor', cursor);
-    if (search) url.searchParams.set('search', search);
+    // if (cursor) url.searchParams.set('cursor', cursor);
+    // if (search) url.searchParams.set('search', search);
 
-    const response = await axios.get(url.toString(), {
+    const response = await axios.get(`${process.env.BACKEND_URL}/api/chat/rooms/`, {
       headers: {
         'Authorization': `Bearer ${session.user.token}`,
         'X-Api-Key': process.env.BACKEND_API_KEY || ''

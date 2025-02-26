@@ -121,7 +121,7 @@ export default function UserProfile() {
                 <span className="text-sm md:text-md font-medium">{details?.role || "Unknown"}</span>
               </div>
               <div className="flex flex-col gap-2">
-                <span className="text-sm text-muted-foreground">Status</span>
+                <span className="text-sm text-muted-foreground">Employment status</span>
                 {statusBadge(details?.is_active!, "Active")}
               </div>
               <div className="flex flex-col gap-2">

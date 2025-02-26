@@ -2,8 +2,9 @@
 
 import { use, useEffect, useCallback, useState, useRef } from "react"
 import { useAppDispatch, useAppSelector } from "@/app/redux/store"
-import { fetchMessages, editMessage, deleteMessage, resetMessages, markMessagesAsRead } from "@/app/redux/slices/chatMessagesSlice"
-import { fetchSingleChatRoom, removeParticipant } from "@/app/redux/slices/chatRoomSlice"
+import { fetchMessages, editMessage, deleteMessage, resetMessages, markMessagesAsRead, addMessage, deleteMessageSuccess, socketMarkMessagesRead, socketEditMessage } from "@/app/redux/slices/chatMessagesSlice"
+import { socketUpdateLastMessage, socketEditLastMessage, socketDeleteLastMessage, socketMarkLastMessageRead, promoteUnreadRoom } from "@/app/redux/slices/chatRoomsSlice"
+import { fetchSingleChatRoom, removeParticipant, socketRemoveParticipant, socketAddParticipants } from "@/app/redux/slices/chatRoomSlice"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -27,6 +28,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import EmployeeDetailsForUsers from "../components/EmployeeDetailsForUsers"
+import { useSocket } from "@/lib/socket-context"
 
 
 interface ChatRoomPageProps {
@@ -35,6 +37,7 @@ interface ChatRoomPageProps {
 
 export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   const { roomId } = use(params)
+  const socket = useSocket()
   const router = useRouter()
   const { data: session, status } = useSession({
     required: true,
@@ -65,13 +68,116 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   const initialRoomFetch = useRef(false)
   const initialLoad = useRef(true);
 
+  // useEffect(() => {
+  //   return () => {
+  //     if (status === "authenticated") {
+  //       dispatch(resetMessages())
+  //     }
+  //   }
+  // }, [status, dispatch])
+
   useEffect(() => {
-    return () => {
-      if (status === "authenticated") {
-        dispatch(resetMessages())
+    if (!socket) return
+
+    socket.emit('join', roomId)
+
+    const handleSocketNewMessage = (message: any) => {
+      if (Number(message.sender.id) !== Number(session?.user?.id)) {
+        dispatch(addMessage(message))
+        setTimeout(() => {
+          scrollToBottom();
+        }, 100);
       }
+      dispatch(socketUpdateLastMessage({
+        roomId: Number(message.room), message: {
+          'id': message.id,
+          'content': message.content,
+          'timestamp': message.timestamp,
+          'sender': message.sender,
+          'read_by': message.read_by,
+        }, userId: Number(session?.user?.id)
+      }));
+      dispatch(promoteUnreadRoom({
+        roomId: Number(message.room),
+        userId: Number(session?.user?.id)
+      }));
     }
-  }, [status, dispatch])
+
+    const handleSocketDeleteMessage = (message: any) => {
+      if (Number(message.sender.id) !== Number(session?.user?.id)) {
+        dispatch(deleteMessageSuccess(message))
+      }
+      dispatch(socketDeleteLastMessage({
+        roomId: Number(message.room),
+        messageId: Number(message.id)
+      }));
+
+    }
+
+    const handleSocketMarkRead = (message: any) => {
+      if (Number(message.user.id) !== Number(session?.user?.id)) {
+        dispatch(socketMarkMessagesRead({
+          roomId: Number(message.roomId),
+          user: message.user
+        }))
+      }
+      dispatch(socketMarkLastMessageRead({
+        roomId: Number(message.roomId),
+        user: message.user
+      }));
+    }
+
+    const handleSocketEditMessage = (message: any) => {
+      if (Number(message.sender.id) !== Number(session?.user?.id)) {
+        dispatch(socketEditMessage(message))
+      }
+      dispatch(socketEditLastMessage({
+        roomId: Number(message.room),
+        message: {
+          'id': message.id,
+          'content': message.content,
+          'timestamp': message.timestamp,
+          'sender': message.sender,
+          'read_by': message.read_by,
+        }
+      }));
+    }
+
+    const handleSocketParticipantsAdded = (message: any) => {
+      if (Number(message.roomId) === Number(roomId)) {
+        dispatch(socketAddParticipants({
+          roomId: Number(message.roomId),
+          participants: message.users
+        }));
+      }
+    };
+
+    const handleSocketParticipantRemoved = (message: any) => {
+      if (Number(message.roomId) === Number(roomId)) {
+        dispatch(socketRemoveParticipant({
+          roomId: Number(message.roomId),
+          userId: message.user.id
+        }));
+      }
+    };
+
+    socket.on('new_message', handleSocketNewMessage)
+    socket.on('delete_message', handleSocketDeleteMessage)
+    socket.on('mark_read', handleSocketMarkRead)
+    socket.on('edit_message', handleSocketEditMessage)
+    socket.on('participants_added', handleSocketParticipantsAdded)
+    socket.on('participant_removed', handleSocketParticipantRemoved)
+
+    return () => {
+      socket.emit('leave', roomId)
+      socket.off('new_message', handleSocketNewMessage)
+      socket.off('delete_message', handleSocketDeleteMessage)
+      socket.off('mark_read', handleSocketMarkRead)
+      socket.off('edit_message', handleSocketEditMessage)
+      socket.off('participants_added', handleSocketParticipantsAdded)
+      socket.off('participant_removed', handleSocketParticipantRemoved)
+    }
+  }, [socket, roomId, session, dispatch])
 
   useEffect(() => {
     if (initialLoad.current && !loading && allMessages.length > 0) {
@@ -106,7 +212,7 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   // }, []);
 
   useEffect(() => {
-    if (status === "authenticated" && !initialFetch.current) {
+    if (status === "authenticated" && !initialFetch.current && allMessages.length === 0) {
       initialFetch.current = true
       dispatch(fetchMessages({ pageUrl: null, roomId }))
     }
@@ -255,15 +361,18 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
                               onClick={() => setSelectedUserId(participant.id)}
                             >
                               <div className="flex items-center gap-2 w-full">
-                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                {/* <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                                   {participant.first_name[0]}
                                   {participant.last_name[0]}
-                                </div>
+                                </div> */}
+                                <Badge variant="outline" className="h-5 text-xs font-mono px-1.5 py-0">
+                                  UID: {participant.id}
+                                </Badge>
                                 <div className="flex flex-col items-start">
-                                  <p className="font-medium text-sm">
+                                  <div className="font-medium text-sm">
                                     {participant.first_name} {participant.last_name}
                                     {isCurrentUser && <span className="italic"> (You)</span>}
-                                  </p>
+                                  </div>
                                   {isAdmin && (
                                     <Badge variant="secondary" className="text-xs w-fit">
                                       Admin
@@ -380,9 +489,41 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
                 const isCurrentUser = message.sender.id === Number(session?.user?.id)
                 return (
                   <div key={message.id} className={`flex flex-col ${isCurrentUser ? "items-end" : "items-start"}`}>
-                    <span className="text-xs text-muted-foreground mb-1 mx-3">
-                      {isCurrentUser ? "You" : message.sender.first_name + " " + message.sender.last_name}
-                    </span>
+                    {!message.sender_exists ? (
+                      <span className="text-xs text-muted-foreground mx-3">
+                        <div className="flex flex-col space-y-1">
+                          <div className="flex items-center gap-1">
+                            <Badge
+                              variant="outline"
+                              className="text-[0.65rem] h-5 px-1.5 italic bg-destructive/10 text-destructive/80 border-destructive/20"
+                            >
+                              Removed User
+                            </Badge>
+                            <span className="font-medium text-foreground/60 italic">
+                              {message.sender?.first_name} {message.sender?.last_name}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 ml-5">
+                            <span className="text-[0.65rem] font-mono text-muted-foreground/50 tracking-tight">
+                              UID: {message.sender?.id}
+                            </span>
+                          </div>
+                        </div>
+                      </span>
+                    ) :
+                      <span className="text-xs text-muted-foreground mb-1 mx-3">
+                        <div className="flex flex-col space-y-1">
+                          <span className="font-medium text-foreground/80">
+                            {isCurrentUser ? "You" : `${message.sender?.first_name} ${message.sender?.last_name}`}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[0.65rem] font-mono text-muted-foreground/60 tracking-tight">
+                              UID: {message.sender?.id}
+                            </span>
+                          </div>
+                        </div>
+                      </span>
+                    }
                     <div
                       className={`group relative max-w-[70%] rounded-2xl px-4 py-2 ${isCurrentUser ? "bg-primary text-primary-foreground" : "bg-muted"
                         } ${message.is_deleted ? "opacity-50" : ""}`}

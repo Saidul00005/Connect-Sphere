@@ -1,4 +1,3 @@
-// app/api/chat/participants/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import axios from 'axios'
 import { getServerSession } from 'next-auth'

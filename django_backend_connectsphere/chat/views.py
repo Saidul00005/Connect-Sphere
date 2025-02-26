@@ -12,6 +12,13 @@ from django.db.models import OuterRef,Count,Subquery,Prefetch,IntegerField,Q
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from accounts.models import User
+import os
+import redis
+import json
+
+REDIS_URL = os.getenv("REDIS_URL")
+
+redis_client = redis.Redis.from_url(REDIS_URL,ssl_cert_reqs=None )
 
 class ChatRoomViewSet(viewsets.ModelViewSet):
     queryset = ChatRoom.objects.all()
@@ -29,76 +36,23 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         queryset=User.objects.only('id', 'first_name', 'last_name')
         )
 
-        last_message_subquery = Message.objects.filter(
-            room=OuterRef('pk') 
-        ).order_by('-timestamp')
-
-        chatrooms = ChatRoom.objects.prefetch_related(prefetch_users).annotate(
-        last_message_id=Subquery(last_message_subquery.values('id')[:1]),
-        last_message_content=Subquery(last_message_subquery.values('content')[:1]),
-        last_message_timestamp=Subquery(last_message_subquery.values('timestamp')[:1]),
-        last_message_is_deleted=Subquery(last_message_subquery.values('is_deleted')[:1]),
-        last_message_sender_id=Subquery(last_message_subquery.values('sender__id')[:1]),
-        last_message_sender_first_name=Subquery(last_message_subquery.values('sender__first_name')[:1]),
-        last_message_sender_last_name=Subquery(last_message_subquery.values('sender__last_name')[:1]),
-        # unread_messages_count=Count(
-        #     'message',
-        #     filter=Q(message__is_deleted=False) & ~Q(message__read_by__id=user.id)
-        # )
-        unread_messages_count=Subquery(
-            Message.objects.filter(
-                room=OuterRef('pk'),
-                is_deleted=False
-            ).exclude(
-                read_by=user
-            ).values('room')
-            .annotate(count=Count('*'))
-            .values('count'),
-            output_field=IntegerField()
-        )
-        ).filter(is_deleted=False)
+        chatrooms = ChatRoom.objects.prefetch_related(prefetch_users).select_related('last_message__sender').filter(is_deleted=False)
         
-        return chatrooms.order_by('-last_modified_at','-created_at','-id')
+        return chatrooms.order_by('-last_message__timestamp','-created_at','-id')
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
+
+        queryset = queryset.filter(participants=request.user)
         
         if not hasattr(request.user, 'role') or request.user.role is None:
             raise PermissionDenied("You do not have permission to view chat rooms.")
 
-        search_query = request.GET.get('search', None)
-
-        # filters = Q()
-        # if search_query:
-        #     filters &= Q(name__icontains=search_query)
-
-        # if filters:
-        #     queryset = queryset.filter(filters).order_by('last_modified_at','id')
-        # else:
-        #     queryset = queryset.order_by('last_modified_at','id')
-
-        if search_query:
-            user = request.user
-            direct_filter = Q(type='DIRECT') & (
-                Q(participants__first_name__icontains=search_query) |
-                Q(participants__last_name__icontains=search_query)
-            ) & ~Q(participants__id=user.id)  
-            
-            group_filter = Q(type='GROUP') & Q(name__icontains=search_query)
-            
-            queryset = queryset.filter(direct_filter | group_filter).distinct().order_by('last_modified_at','id')
-        else:
-            queryset = queryset.order_by('last_modified_at','id')
-
-
-        paginator = CursorChatroomPagination()
-        paginated_queryset = paginator.paginate_queryset(queryset, request)
-
-        if paginated_queryset is not None:
-            serializer = self.get_serializer(paginated_queryset, many=True)
-            return paginator.get_paginated_response(serializer.data)
-
-        return Response({"error": "Unable to paginate chatrooms."}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'results': serializer.data,
+            'count': queryset.count()
+        })
 
     def retrieve(self, request, *args, **kwargs):
         chatroom = self.get_object()
@@ -144,16 +98,43 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
                     existing_chat.save()
                     data = self.get_serializer(existing_chat).data
                     data['message'] = 'Chatroom restored successfully.'
-                    return Response(data, status=status.HTTP_200_OK)
+                    print("Restored direct chatroom data:", data) 
+                    
                 else:
                     data = self.get_serializer(existing_chat).data
                     data['message'] = 'Chatroom already exists.'
-                    return Response(data, status=status.HTTP_200_OK)
+
+                try:
+                    redis_client.publish(
+                    'room_events',
+                        json.dumps({
+                            'event': 'room_created',
+                            'roomId':str(existing_chat.id),
+                            'data': data  
+                        })
+                    )
+                except redis.exceptions.RedisError as e:
+                    logger.error(f"Redis publish failed: {e}") 
+
+                return Response(data, status=status.HTTP_200_OK)
             
             serializer.validated_data['name'] = None 
             chatroom = serializer.save(created_by=user, participants_hash=participants_hash)
             chatroom.participants.add(user, other_user_id)
             data = self.get_serializer(chatroom).data
+
+            try:
+                redis_client.publish(
+                    'room_events',
+                    json.dumps({
+                        'event': 'room_created',
+                        'roomId': str(chatroom.id),
+                        'data': data  
+                    })
+                )
+            except redis.exceptions.RedisError as e:
+                logger.error(f"Redis publish failed: {e}")
+
             return Response(data, status=status.HTTP_201_CREATED)
 
         elif chat_type == 'GROUP':
@@ -176,6 +157,19 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             )
             chatroom.participants.add(user, *participants)
             data = self.get_serializer(chatroom).data
+            
+            try:
+                redis_client.publish(
+                    'room_events',
+                    json.dumps({
+                        'event': 'room_created',
+                        'roomId':str(chatroom.id),
+                        'data': data
+                    })
+                )
+            except redis.exceptions.RedisError as e:
+                logger.error(f"Redis publish failed: {e}")
+            
             return Response(data, status=status.HTTP_201_CREATED)
         else:
             return Response(
@@ -227,6 +221,27 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         
         room.participants.add(*user_ids)
 
+        new_users = User.objects.filter(id__in=user_ids)
+        users_info = [
+            {"id": user.id, "first_name": user.first_name, "last_name": user.last_name}
+            for user in new_users
+        ]
+        
+        try:
+            redis_client.publish(
+                'room_events',
+                json.dumps({
+                    'event': 'participants_added',
+                    'roomId': str(room.id),
+                    'data': {
+                        'users': users_info,
+                        'roomId': room.id
+                    }
+                })
+            )
+        except redis.exceptions.RedisError as e:
+            logger.error(f"Redis publish failed: {e}") 
+
         return Response({'message': 'Participants added successfully'}, status=status.HTTP_200_OK)
 
     def update(self, request, *args, **kwargs):
@@ -267,6 +282,18 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         chatroom.is_restored = False
         chatroom.save()
 
+        try:    
+            redis_client.publish(
+                'room_events',
+                json.dumps({
+                    'event': 'room_deleted',
+                    'roomId': str(chatroom.id),
+                    'data': {'roomId': chatroom.id}
+                })
+            )
+        except redis.exceptions.ConnectionError as e:
+            print(f"Redis publish failed: {e}")  
+
         return Response({'message': 'Chatroom successfully deleted (soft delete)'},
                         status=status.HTTP_200_OK)
 
@@ -287,8 +314,6 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 
         return Response({'message': 'Chatroom successfully restored'}, status=status.HTTP_200_OK)
 
-
-    # Add to ChatRoomViewSet in views.py
     @action(detail=True, methods=['post'])
     def remove_participant_for_chatroom_admin(self, request, pk=None):
 
@@ -336,6 +361,25 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         chatroom.participants.remove(user_to_remove)
         chatroom.last_modified_at = timezone.now()
         chatroom.save()
+        
+        try:
+            redis_client.publish(
+                'room_events',
+                json.dumps({
+                    'event': 'participant_removed',
+                    'roomId': str(chatroom.id),
+                    'data': {
+                            'user': {
+                                'id': user_to_remove.id,
+                                'first_name': user_to_remove.first_name,
+                                'last_name': user_to_remove.last_name,
+                            },
+                            'roomId': chatroom.id
+                        }
+                })
+            )
+        except redis.exceptions.RedisError as e:
+            logger.error(f"Redis publish failed: {e}")
 
         return Response(
             {'message': f'Participant {user_id} removed successfully'},
@@ -385,6 +429,22 @@ class MessageViewSet(viewsets.ModelViewSet):
 
         message = serializer.save(sender=self.request.user, is_sent=True, is_delivered=True)
         message.read_by.add(self.request.user)
+        message.room.last_message = message
+        message.room.save()
+
+        message_data = MessageSerializer(message).data
+
+        try:
+            redis_client.publish(
+                'message_events',
+                json.dumps({
+                    'event': 'new_message',
+                    'roomId': str(room_id),
+                    'data': message_data
+                })
+            )
+        except redis.exceptions.RedisError as e:
+            logger.error(f"Redis publish failed: {e}")
 
     def update(self, request, *args, **kwargs):
         message_id = kwargs.get('pk')
@@ -431,7 +491,19 @@ class MessageViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(message, data=request.data, partial=False)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-
+        
+        try:
+            redis_client.publish(
+                'message_events',
+                json.dumps({
+                    'event': 'edit_message',
+                    'roomId': str(room_id),
+                    'data': serializer.data
+                })
+            )
+        except redis.exceptions.RedisError as e:
+            logger.error(f"Redis publish failed: {e}")
+        
         return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):
@@ -477,6 +549,20 @@ class MessageViewSet(viewsets.ModelViewSet):
         message.last_deleted_at = timezone.now()
         message.save()
 
+        message_data = MessageSerializer(message).data
+        
+        try:
+            redis_client.publish(
+                'message_events',
+                json.dumps({
+                    'event': 'delete_message',
+                    'roomId': str(room_id),
+                    'data': message_data
+                })
+            )
+        except redis.exceptions.RedisError as e:
+            logger.error(f"Redis publish failed: {e}")
+        
         return Response(
             {'message': 'Message soft deleted successfully'},
             status=status.HTTP_200_OK
@@ -525,6 +611,31 @@ class MessageViewSet(viewsets.ModelViewSet):
                     for mid in batch
                 ]
                 MessageRead.objects.bulk_create(objs, ignore_conflicts=True)
+
+            # redis_client.publish(
+            #     'room_events',
+            #     json.dumps({
+            #         'event': 'mark_read',
+            #         # 'roomId': str(room_id),
+            #         'data': {'user': user,'roomId': room_id}
+            #     })
+            # )
+
+            redis_client.publish(
+                'room_events',
+                json.dumps({
+                    'event': 'mark_read',
+                    'roomId': str(room_id),
+                    'data': {
+                        'user': {
+                            'id': user.id,
+                            'first_name': user.first_name,
+                            'last_name': user.last_name,
+                        },
+                        'roomId': room_id
+                    }
+                })
+            )
                 
         except Exception as e:
             return Response(

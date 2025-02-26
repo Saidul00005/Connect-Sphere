@@ -7,7 +7,7 @@ class UserSerializer(serializers.ModelSerializer):
     role = serializers.CharField(source='role.name')
     class Meta:
         model = User
-        fields = ['id', 'first_name','last_name','role','profile_picture','is_approved','is_deleted']
+        fields = ['id', 'first_name','last_name','role','profile_picture','is_approved','is_deleted','is_active']
 
 class DepartmentSerializer(serializers.ModelSerializer):
     employee_count = serializers.SerializerMethodField()
@@ -104,8 +104,10 @@ class CustomEmployeeSerializerFor_list_employee_action(serializers.ModelSerializ
     user__first_name = serializers.CharField(source='user.first_name', read_only=True)
     user__last_name = serializers.CharField(source='user.last_name', read_only=True)
     user__role_name = serializers.CharField(source='user.role.name', read_only=True)
+    user__is_active = serializers.BooleanField(source='user.is_active', read_only=True)
+    user__profile_picture = serializers.ImageField(source='user.profile_picture', read_only=True,  use_url=True)
     department__name = serializers.CharField(source='department.name', read_only=True)
 
     class Meta:
         model = Employee
-        fields = ['id', 'user__id', 'user__first_name','user__last_name', 'user__role_name', 'designation', 'department__name']
+        fields = ['id', 'user__id', 'user__first_name','user__last_name', 'user__role_name','user__is_active','user__profile_picture', 'designation', 'department__name']

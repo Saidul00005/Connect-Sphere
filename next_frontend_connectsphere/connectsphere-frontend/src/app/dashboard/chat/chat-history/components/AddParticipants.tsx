@@ -43,7 +43,7 @@ export function AddParticipants({ onBack, roomId, existingParticipants }: AddPar
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [department, setDepartment] = useState("")
-  const [loading, setLoading] = useState(false)
+  const [Isloading, setIsLoading] = useState(false)
 
   const componentKey = "addParticipants"
   const filterKey = getFilterKey(department, searchTerm, componentKey)
@@ -154,7 +154,7 @@ export function AddParticipants({ onBack, roomId, existingParticipants }: AddPar
   const handleSubmit = useCallback(async () => {
     if (selectedParticipants.length === 0) return
 
-    setLoading(true)
+    setIsLoading(true)
     try {
       if (status === "authenticated") {
         await dispatch(
@@ -168,13 +168,14 @@ export function AddParticipants({ onBack, roomId, existingParticipants }: AddPar
       })
       onBack()
     } catch (error: any) {
+      const errorMessage = error.payload?.error || error.message;
       toast({
         title: "Error Adding Participants",
-        description: error.message || "Something went wrong. Please try again.",
+        description: errorMessage || "Something went wrong. Please try again.",
         variant: "destructive",
       })
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }, [status, selectedParticipants, roomId, dispatch, toast, onBack])
 
@@ -311,9 +312,9 @@ export function AddParticipants({ onBack, roomId, existingParticipants }: AddPar
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={selectedParticipants.length === 0 || loading}
+            disabled={selectedParticipants.length === 0 || Isloading}
           >
-            {loading ? (
+            {Isloading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               `Add Selected (${selectedParticipants.length})`
