@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card"
 import { CalendarDays, User2, Building2, Phone, MapPin, Trophy } from "lucide-react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { useSession } from "next-auth/react"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -93,6 +93,12 @@ export default function ProfilePage({ userId }: ProfilePageProps) {
         <div className="p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row items-center gap-6">
             <Avatar className="h-24 w-24">
+              {details.profile_picture && (
+                <AvatarImage
+                  src={details.profile_picture}
+                  alt={details.name ? details.name : "Profile Picture"}
+                />
+              )}
               <AvatarFallback className="text-xl">{initials}</AvatarFallback>
             </Avatar>
             <div className="text-center sm:text-left">

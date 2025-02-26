@@ -4,6 +4,8 @@ export interface Employee {
   user__first_name: string | null;
   user__last_name: string | null;
   user__role_name: string;
+  user__is_active: boolean;
+  user__profile_picture: string | null;
   designation: string | null;
   department__name: string | null;
 }

@@ -62,7 +62,7 @@ declare global {
 
 const app = express();
 app.use(cors({
-  origin: ['*']
+  origin: [process.env.NEXT_FRONTEND_URL],
 }));
 const httpServer = createServer(app);
 

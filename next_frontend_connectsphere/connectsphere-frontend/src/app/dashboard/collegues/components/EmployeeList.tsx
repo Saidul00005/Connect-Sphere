@@ -26,6 +26,7 @@ import EmployeeProfileForUser from "./EmployeeProfileForUser"
 import { fetchDepartments } from "@/app/redux/slices/DepartmentListSliceForUser";
 import { useToast } from "@/hooks/use-toast";
 import { createChatRoom } from "@/app/redux/slices/chatRoomsSlice";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 
 export default function EmployeeList() {
@@ -295,9 +296,21 @@ export default function EmployeeList() {
               <CardContent className="p-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground">
-                      {isCurrentUser ? "You" : `${employee.user__first_name} ${employee.user__last_name}`}
-                    </h3>
+                    <div className="flex flex-row items-center gap-2">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage
+                          src={employee.user__profile_picture ? employee.user__profile_picture : ""}
+                          alt={`${employee.user__first_name} ${employee.user__last_name}`}
+                        />
+                        <AvatarFallback className="text-xl">
+                          {employee.user__first_name?.[0]}
+                          {employee.user__last_name?.[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <h3 className="text-lg font-semibold text-foreground">
+                        {isCurrentUser ? "You" : `${employee.user__first_name} ${employee.user__last_name}`}
+                      </h3>
+                    </div>
                     <p className="text-sm text-muted-foreground">
                       Company role: {employee.user__role_name}
                     </p>
@@ -306,6 +319,9 @@ export default function EmployeeList() {
                     </p>
                     <p className="text-sm text-muted-foreground">
                       Department: {employee.department__name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Employment status: {employee.user__is_active === true ? "Active" : "Not Active"}
                     </p>
                   </div>
                   <div className="flex gap-2">

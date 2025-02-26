@@ -118,7 +118,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         search_query = request.GET.get('search', None)
 
         employeesList = Employee.objects.select_related('user', 'department').only(
-           'id', 'user__id', 'user__first_name','user__last_name', 'user__role__name', 'designation', 'department__name'
+           'id', 'user__id', 'user__first_name','user__last_name', 'user__role__name','user__is_active','user__profile_picture', 'designation', 'department__name'
         )
 
         filters = Q()
@@ -129,7 +129,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
 
         employeesList = employeesList.filter(filters).order_by('id') 
 
-        serializer = CustomEmployeeSerializerFor_list_employee_action(employeesList, many=True)
+        serializer = CustomEmployeeSerializerFor_list_employee_action(employeesList, many=True,context={'request': request} )
 
         paginator = CustomPagination()
         paginated_employees = paginator.paginate_queryset(serializer.data, request)
@@ -166,6 +166,11 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             "designation": employee.designation,
             "department": employee.department.name if employee.department else None,
             "performance_rating": employee.performance_rating,
+            "profile_picture": (
+                request.build_absolute_uri(employee.user.profile_picture.url) 
+                if employee.user.profile_picture 
+                else None
+            ),
             "reporting_manager_name": employee.reporting_manager_name,
             "contact_number": employee.contact_number,
             "emergency_contact": employee.emergency_contact,
@@ -218,6 +223,11 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             'name': employee.full_name,
             'role':employee.role_name,
             'designation': employee.designation,
+            "profile_picture": (
+                request.build_absolute_uri(employee.user.profile_picture.url) 
+                if employee.user.profile_picture 
+                else None
+            ),
             'reporting_manager': employee.reporting_manager_name,
             'joining_date': employee.joining_date,
             'performance_rating': employee.performance_rating,

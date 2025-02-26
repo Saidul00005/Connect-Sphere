@@ -7,6 +7,7 @@ export interface EmployeeDetails {
   designation: string | null;
   department: string | null;
   performance_rating: number | null;
+  profile_picture: string | null;
   reporting_manager_name: string | null;
   contact_number: string | null;
   emergency_contact: string | null;

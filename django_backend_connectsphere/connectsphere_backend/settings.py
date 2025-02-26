@@ -86,7 +86,7 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.AnonRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'user': '200/hour',  # 200 requests per hour per user
+        'user': '500/hour',  # 500 requests per hour per user
         'anon': '30/minute',  # 30 requests per minute for anonymous users
     }
 
@@ -101,7 +101,6 @@ SIMPLE_JWT = {
      
 }
 
-# CORS_ALLOWED_ORIGINS =['http://192.168.1.7', 'http://localhost', 'http://127.0.0.1',]   
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') 
 
 TEMPLATES = [

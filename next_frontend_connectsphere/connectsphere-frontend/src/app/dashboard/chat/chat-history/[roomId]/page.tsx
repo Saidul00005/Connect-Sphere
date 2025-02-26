@@ -361,15 +361,18 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
                               onClick={() => setSelectedUserId(participant.id)}
                             >
                               <div className="flex items-center gap-2 w-full">
-                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                {/* <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                                   {participant.first_name[0]}
                                   {participant.last_name[0]}
-                                </div>
+                                </div> */}
+                                <Badge variant="outline" className="h-5 text-xs font-mono px-1.5 py-0">
+                                  UID: {participant.id}
+                                </Badge>
                                 <div className="flex flex-col items-start">
-                                  <p className="font-medium text-sm">
+                                  <div className="font-medium text-sm">
                                     {participant.first_name} {participant.last_name}
                                     {isCurrentUser && <span className="italic"> (You)</span>}
-                                  </p>
+                                  </div>
                                   {isAdmin && (
                                     <Badge variant="secondary" className="text-xs w-fit">
                                       Admin
@@ -487,12 +490,38 @@ export default function ChatRoomPage({ params }: ChatRoomPageProps) {
                 return (
                   <div key={message.id} className={`flex flex-col ${isCurrentUser ? "items-end" : "items-start"}`}>
                     {!message.sender_exists ? (
-                      <span className="text-xs italic text-muted-foreground">
-                        (Removed User) {message.sender?.first_name} {message.sender?.last_name}
+                      <span className="text-xs text-muted-foreground mx-3">
+                        <div className="flex flex-col space-y-1">
+                          <div className="flex items-center gap-1">
+                            <Badge
+                              variant="outline"
+                              className="text-[0.65rem] h-5 px-1.5 italic bg-destructive/10 text-destructive/80 border-destructive/20"
+                            >
+                              Removed User
+                            </Badge>
+                            <span className="font-medium text-foreground/60 italic">
+                              {message.sender?.first_name} {message.sender?.last_name}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 ml-5">
+                            <span className="text-[0.65rem] font-mono text-muted-foreground/50 tracking-tight">
+                              UID: {message.sender?.id}
+                            </span>
+                          </div>
+                        </div>
                       </span>
                     ) :
                       <span className="text-xs text-muted-foreground mb-1 mx-3">
-                        {isCurrentUser ? "You" : message.sender?.first_name + " " + message.sender?.last_name}
+                        <div className="flex flex-col space-y-1">
+                          <span className="font-medium text-foreground/80">
+                            {isCurrentUser ? "You" : `${message.sender?.first_name} ${message.sender?.last_name}`}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[0.65rem] font-mono text-muted-foreground/60 tracking-tight">
+                              UID: {message.sender?.id}
+                            </span>
+                          </div>
+                        </div>
                       </span>
                     }
                     <div
