@@ -9,7 +9,7 @@ import {
 import { DynamicBreadcrumb } from './components/navbar/breadcumb-nav';
 import { ReduxProvider } from "@/components/custom/redux/ReduxProvider";
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/app/api/auth/lib/auth'
 import { redirect } from 'next/navigation'
 import { SocketProvider } from "@/lib/socket-context"
 
