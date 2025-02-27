@@ -1,11 +1,13 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import UserViewSet,CustomTokenObtainPairView,CustomTokenRefreshView
+from django.contrib import admin
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet, basename='user')
 
 urlpatterns = [
+    path("admin/", admin.site.urls),
     path('', include(router.urls)),
     path('users/', UserViewSet.as_view({'post': 'create'}), name='create_user_for_CEO'),
     path('users/list/', UserViewSet.as_view({'get': 'list'}), name='all_users_for_CEO'),
