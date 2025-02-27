@@ -135,7 +135,8 @@ class UserViewSet(viewsets.ModelViewSet):
         user.is_approved = True
         user.approved_by = request.user
         user.save()
-        return Response({'message': f'User {user.first_name + ' ' + user.last_name} approved successfully.'})
+        return Response({'message': f'User {(user.first_name + " " + user.last_name)} approved successfully.'})
+
 
     
     @action(detail=False, methods=['get'])
