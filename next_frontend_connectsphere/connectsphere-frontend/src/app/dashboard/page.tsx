@@ -30,7 +30,7 @@ export default function DashboardPage() {
           Welcome, {session?.user?.name || session?.user?.email?.split('@')[0]}
         </h1>
         <p className="text-muted-foreground">
-          You're logged in to Connect Sphere Dashboard
+          You&apos;re logged in to Connect Sphere Dashboard.
         </p>
       </div>
     </div>

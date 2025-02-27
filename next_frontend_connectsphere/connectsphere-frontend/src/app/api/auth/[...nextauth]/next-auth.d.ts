@@ -1,5 +1,5 @@
 import "next-auth";
-import { User, SessionExtended } from "@/app/api/auth/types";
+
 
 declare module "next-auth" {
   interface User {

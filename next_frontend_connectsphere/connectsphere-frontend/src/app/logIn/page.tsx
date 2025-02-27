@@ -31,7 +31,7 @@ const formSchema = z.object({
 export default function LoginPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
-  const { data: session, status } = useSession()
+  const { status } = useSession()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

@@ -36,12 +36,16 @@ export default function UserProfile() {
     }
   }, [status, details, userProfileLoading, error, dispatch])
 
-
-  const statusBadge = (condition: boolean, text: string) => (
+  const statusBadge = (
+    condition: boolean,
+    trueText: string,
+    falseText: string = "Inactive"
+  ) => (
     <Badge variant={condition ? "default" : "destructive"} className="h-6">
-      {text}
+      {condition ? trueText : falseText}
     </Badge>
-  )
+  );
+
   const isLoading = (status === "loading" || userProfileLoading) && !error;
 
   if (isLoading) {
@@ -122,11 +126,11 @@ export default function UserProfile() {
               </div>
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Employment status</span>
-                {statusBadge(details?.is_active!, "Active")}
+                {statusBadge(details?.is_active ?? false, "Active", "Inactive")}
               </div>
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Approval Status</span>
-                {statusBadge(details?.is_approved!, "Approved")}
+                {statusBadge(details?.is_approved ?? false, "Approved", "Pending")}
               </div>
             </div>
           </section>

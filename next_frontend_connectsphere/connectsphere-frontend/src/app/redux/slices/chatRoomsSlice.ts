@@ -95,7 +95,7 @@ export const deleteChatRoom = createAsyncThunk<
   "chatRooms/delete",
   async (roomId, { rejectWithValue }) => {
     try {
-      await axios.delete(`/api/chat/rooms/${roomId}`);
+      await axios.delete(`/api/chat/rooms/room/delete?room_id=${roomId}`);
       return roomId;
     } catch (error) {
       if (axios.isAxiosError(error)) {

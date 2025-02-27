@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation"
 
 export default function ProfilePage() {
   const router = useRouter()
-  const { status } = useSession({
+  const { } = useSession({
     required: true,
     onUnauthenticated() {
       router.push("/")

@@ -1,7 +1,7 @@
 "use client"
 
 import { Card } from "@/components/ui/card"
-import { CalendarDays, User2, Building2, Phone, MapPin, Trophy } from "lucide-react"
+import { CalendarDays, User2, Building2, Phone, Trophy } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { useSession } from "next-auth/react"

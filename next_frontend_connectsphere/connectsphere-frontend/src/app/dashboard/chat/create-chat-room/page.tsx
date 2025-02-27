@@ -239,8 +239,7 @@ export default function CreateChatRoom() {
     name,
     dispatch,
     toast,
-    router,
-    session?.user?.id])
+    router])
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-background p-4 space-y-6 md:space-y-0 md:p-8 md:grid md:grid-cols-2 md:gap-8">

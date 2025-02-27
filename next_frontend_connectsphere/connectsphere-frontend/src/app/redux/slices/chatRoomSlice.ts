@@ -86,7 +86,7 @@ export const removeParticipant = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      await axios.post(`/api/chat/rooms/${roomId}/`, {
+      await axios.post(`/api/chat/rooms/room/removeParticipant?room_id=${roomId}/`, {
         user_id: userId
       });
       return { roomId, userId };

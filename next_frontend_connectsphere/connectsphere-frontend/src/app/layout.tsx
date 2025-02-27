@@ -4,7 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/custom/Theme-provider";
 import NextAuthProvider from "@/components/custom/next-auth/NextAuthProvider";
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { Toaster } from "@/components/ui/toaster";
 
 
