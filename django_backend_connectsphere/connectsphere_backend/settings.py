@@ -48,7 +48,6 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'rest_framework_api_key',
     'corsheaders',
-    'channels',
 
     # Local apps
     'accounts',
