@@ -7,6 +7,7 @@ from .serializers import UserSerializer,CustomTokenObtainPairSerializer
 from .pagination import CustomPagination
 from rest_framework.exceptions import PermissionDenied
 from rest_framework_api_key.permissions import HasAPIKey
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.exceptions import NotFound
 from django.http import Http404
@@ -16,7 +17,7 @@ from django.db import models
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.filter(is_deleted=False).select_related("role")
     serializer_class = UserSerializer
-    permission_classes = [HasAPIKey,permissions.IsAuthenticated]
+    permission_classes = [HasAPIKey,IsAuthenticated]
     pagination_class = CustomPagination
     throttle_classes = [UserRateThrottle]
 

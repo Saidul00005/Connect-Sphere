@@ -257,7 +257,7 @@ export default function ChatHistory() {
             <>
               {searchQuery && (
                 <div className="px-4 py-2 text-sm text-muted-foreground border-b">
-                  Search results for  &quot;{searchQuery}&quot
+                  Search results for  &quot;{searchQuery}&quot;
                 </div>
               )}
               {allRooms.length === 0 ? (

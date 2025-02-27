@@ -26,7 +26,7 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
     pagination_class = CustomPagination
-    permission_classes = [HasAPIKey,permissions.IsAuthenticated]
+    permission_classes = [HasAPIKey,IsAuthenticated]
     throttle_classes = [UserRateThrottle]
 
     # def get_permissions(self):
@@ -91,7 +91,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
     pagination_class = CustomPagination
-    permission_classes = [HasAPIKey,permissions.IsAuthenticated]
+    permission_classes = [HasAPIKey,IsAuthenticated]
     throttle_classes = [UserRateThrottle]
 
     def list(self, request, *args, **kwargs):
