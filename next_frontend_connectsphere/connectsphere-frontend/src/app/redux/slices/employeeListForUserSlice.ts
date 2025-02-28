@@ -46,7 +46,7 @@ export const fetchEmployees = createAsyncThunk<
       if (search) params.set("search", search);
 
       const response = await axios.get<EmployeeResponse>(
-        `/api/employees/list_employee_for_request_user?${params.toString()}`
+        `/api/employees/list_employee_for_request_user/?${params.toString()}`
       );
 
       const data: PageData = {

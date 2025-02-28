@@ -22,7 +22,7 @@ export const fetchDepartments = createAsyncThunk(
   'departments/fetch',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get('/api/departments/departments_list_for_request_user')
+      const response = await axios.get('/api/departments/departments_list_for_request_user/')
       return response.data
     } catch (error: any) {
       if (error.response) {

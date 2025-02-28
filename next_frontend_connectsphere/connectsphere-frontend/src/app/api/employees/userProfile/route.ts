@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     }
 
     const response = await axios.get(
-      `${process.env.BACKEND_URL}/api/accounts/users/${session.user.id}`,
+      `${process.env.BACKEND_URL}/api/accounts/users/${session.user.id}/`,
       {
         headers: {
           'Authorization': `Bearer ${session.user.token}`,

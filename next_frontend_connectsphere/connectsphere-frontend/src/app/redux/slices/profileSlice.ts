@@ -52,7 +52,7 @@ export const fetchProfile = createAsyncThunk(
   'profile/fetch',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get('/api/employees/profile')
+      const response = await axios.get('/api/employees/profile/')
       return response.data
     } catch (error: any) {
       if (error.response) {

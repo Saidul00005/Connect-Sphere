@@ -37,7 +37,7 @@ export const fetchUserProfile = createAsyncThunk(
   'userProfile/fetch',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get('/api/employees/userProfile')
+      const response = await axios.get('/api/employees/userProfile/')
       return response.data
     } catch (error: any) {
       if (error.response) {

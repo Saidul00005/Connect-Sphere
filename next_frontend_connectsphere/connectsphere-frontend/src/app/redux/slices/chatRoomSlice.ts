@@ -22,7 +22,7 @@ export const fetchSingleChatRoom = createAsyncThunk(
   'chatRoom/fetchSingle',
   async (roomId: number, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`/api/chat/rooms/singleChatRoomInformation?roomId=${roomId}`);
+      const response = await axios.get(`/api/chat/rooms/singleChatRoomInformation/?roomId=${roomId}`);
       return response.data;
     } catch (error: any) {
       if (error.response) {
@@ -52,7 +52,7 @@ export const addParticipants = createAsyncThunk(
     participants: User[]
   }, { rejectWithValue, getState }) => {
     try {
-      const response = await axios.post('/api/chat/rooms/addParticipants', {
+      const response = await axios.post('/api/chat/rooms/addParticipants/', {
         room_id: roomId,
         user_ids: participants.map((p) => p.id),
       });
@@ -86,7 +86,7 @@ export const removeParticipant = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      await axios.post(`/api/chat/rooms/room/removeParticipant?room_id=${roomId}/`, {
+      await axios.post(`/api/chat/rooms/room/removeParticipant/?room_id=${roomId}/`, {
         user_id: userId
       });
       return { roomId, userId };

@@ -79,7 +79,7 @@ export const editMessage = createAsyncThunk<
 >("chatMessages/edit", async ({ messageId, content, roomId }, { rejectWithValue }) => {
   try {
     await axios.patch(
-      `/api/chat/messages/message/edit?message_id=${messageId}&room_id=${roomId}`,
+      `/api/chat/messages/message/edit/?message_id=${messageId}&room_id=${roomId}`,
       { content }
     );
     return { messageId, content };
@@ -97,7 +97,7 @@ export const deleteMessage = createAsyncThunk<
   { rejectValue: string }
 >("chatMessages/delete", async ({ messageId, roomId }, { rejectWithValue }) => {
   try {
-    await axios.delete(`/api/chat/messages/message/delete?message_id=${messageId}&room_id=${roomId}`);
+    await axios.delete(`/api/chat/messages/message/delete/?message_id=${messageId}&room_id=${roomId}`);
     return messageId;
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -116,7 +116,7 @@ export const markMessagesAsRead = createAsyncThunk<
   "chatMessages/markAsRead",
   async ({ roomId, user }, { rejectWithValue, dispatch }) => {
     try {
-      await axios.post("/api/chat/messages/mark_as_read", { room_id: roomId });
+      await axios.post("/api/chat/messages/mark_as_read/", { room_id: roomId });
 
       dispatch(markMessagesRead({ roomId, user }));
 
