@@ -21,7 +21,11 @@ from django.conf.urls.static import static
 
 import connectsphere_backend.admin_site
 
+def health_check(request):
+    return JsonResponse({"status": "OK"}, status=200)
+
 urlpatterns = [
+    path('', health_check), 
     path('admin/', admin.site.urls),
     path('api/accounts/', include('accounts.urls')), 
     path('api/', include('employees.urls')),  

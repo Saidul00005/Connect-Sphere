@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
       {
         headers: {
           'Authorization': `Bearer ${session.user.token}`,
-          'X-Api-Key': process.env.BACKEND_API_Key
+          'X-Api-Key': process.env.BACKEND_API_KEY
         }
       }
     );
