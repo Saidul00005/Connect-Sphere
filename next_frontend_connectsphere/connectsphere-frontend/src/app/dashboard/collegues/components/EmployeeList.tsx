@@ -73,13 +73,13 @@ export default function EmployeeList() {
       dispatch(resetEmployees("employeeList"));
       dispatch(fetchEmployees({ pageUrl: null, department, search: searchTerm, component: "employeeList" }));
     }
-  }, [status, department, searchTerm, dispatch]);
+  }, [status, department, searchTerm, employees.length, dispatch]);
 
   useEffect(() => {
     if (status === "authenticated" && list.length === 0 && !departmentListLoading && !departmentListError) {
       dispatch(fetchDepartments());
     }
-  }, [dispatch, status, departmentListLoading, departmentListError]);
+  }, [dispatch, status, departmentListLoading, departmentListError, list.length]);
 
   const handlePreviousPage = useCallback(() => {
     if (previousPageUrl && !employeeListLoading && !departmentListLoading) {

@@ -20,6 +20,11 @@ REDIS_URL = os.getenv("REDIS_URL")
 
 redis_client = redis.Redis.from_url(REDIS_URL,ssl_cert_reqs=None )
 
+def serialize_datetime(obj):
+    if isinstance(obj, datetime.datetime):  
+        return obj.isoformat()\
+    raise TypeError(f"Type {type(obj)} not serializable")
+
 class ChatRoomViewSet(viewsets.ModelViewSet):
     queryset = ChatRoom.objects.all()
     serializer_class = ChatRoomSerializer
@@ -111,8 +116,8 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
                             'event': 'room_created',
                             'roomId':str(existing_chat.id),
                             'data': data  
-                        })
-                    )
+                        },default=serialize_datetime))
+                    
                 except redis.exceptions.RedisError as e:
                     logger.error(f"Redis publish failed: {e}") 
 
@@ -130,7 +135,7 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
                         'event': 'room_created',
                         'roomId': str(chatroom.id),
                         'data': data  
-                    })
+                    }, default=serialize_datetime)
                 )
             except redis.exceptions.RedisError as e:
                 logger.error(f"Redis publish failed: {e}")
@@ -165,7 +170,7 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
                         'event': 'room_created',
                         'roomId':str(chatroom.id),
                         'data': data
-                    })
+                    }, default=serialize_datetime)
                 )
             except redis.exceptions.RedisError as e:
                 logger.error(f"Redis publish failed: {e}")
