@@ -22,7 +22,7 @@ redis_client = redis.Redis.from_url(REDIS_URL,ssl_cert_reqs=None )
 
 def serialize_datetime(obj):
     if isinstance(obj, datetime.datetime):  
-        return obj.isoformat()\
+        return obj.isoformat()
     raise TypeError(f"Type {type(obj)} not serializable")
 
 class ChatRoomViewSet(viewsets.ModelViewSet):
