@@ -37,17 +37,26 @@ class EmployeeAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
     def has_delete_permission(self, request, obj=None):
-        return request.user.role == 'Manager' or request.user.role == 'CEO'
+        return request.user.is_superuser or (
+            hasattr(request.user, 'role') and 
+            request.user.role.name in ['MANAGER', 'CEO']
+        )
 
     actions = ['mark_as_approved', 'mark_as_pending']
 
     def mark_as_approved(self, request, queryset):
-        queryset.update(approval_status='approved')
-    mark_as_approved.short_description = "Mark selected employees as approved"
+        # Update the related User's is_approved status
+        for employee in queryset:
+            employee.user.is_approved = True
+            employee.user.save()
+    mark_as_approved.short_description = "Approve selected employees"
 
     def mark_as_pending(self, request, queryset):
-        queryset.update(approval_status='pending')
-    mark_as_pending.short_description = "Mark selected employees as pending"
+        # Update the related User's is_approved status
+        for employee in queryset:
+            employee.user.is_approved = False
+            employee.user.save()
+    mark_as_pending.short_description = "Mark selected as pending"
 
 class EmployeeDocumentAdmin(admin.ModelAdmin):
     list_display = ('employee', 'document_type', 'document_link', 'uploaded_at', 'description')
