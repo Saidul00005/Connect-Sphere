@@ -55,26 +55,13 @@ export default function LoginPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     try {
-      const result = await signIn("credentials", {
-        redirect: false,
+      await signIn("credentials", {
         email: values.email,
         password: values.password,
         role: values.role,
+        redirect: true,
+        callbackUrl: "/dashboard"
       })
-
-      if (result?.error) {
-        toast({
-          title: "Login Failed",
-          description: result.error,
-          variant: "destructive",
-        })
-      } else {
-        toast({
-          title: "Login Successful",
-          description: "You have been logged in successfully.",
-        })
-        router.push("/dashboard")
-      }
     } catch (error) {
       toast({
         title: "Error",
