@@ -94,7 +94,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md p-8 bg-card text-card-foreground shadow-lg rounded-lg">
           <h1 className="text-2xl lg:text-3xl font-bold mb-6 text-center">Login</h1>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" autoComplete="on">
               <FormField
                 control={form.control}
                 name="email"
@@ -102,7 +102,7 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter your email" {...field} />
+                      <Input autoComplete="email" placeholder="Enter your email" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -115,7 +115,7 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Enter your password" {...field} />
+                      <Input type="password" autoComplete="current-password" placeholder="Enter your password" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
