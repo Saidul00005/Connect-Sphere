@@ -4,12 +4,6 @@
 
 This repository contains the codebase for Connect Sphere Website.This is a scalable and full-stack microservice application designed for employee interaction, integrating real-time messaging, role management, and employee identification.
 
-## Live Demo
-
-The application is currently live and can be accessed at this following link:
-
-[Live Connect Sphere App](https://connect-sphere-beta.vercel.app/)
-
 ## Features
 
 - User authentication with role-based access control (CEO, Manager, Employee).
@@ -19,6 +13,16 @@ The application is currently live and can be accessed at this following link:
 - Scalable single-page application (SPA).
 - Employee approval process with 'Approval Pending' status before access.
 - Admin panel for managing whole Connect Sphere application works.
+
+## Technical Overview
+
+- Next.js App Router for scalable frontend routing.
+- ShadCN for component styling and dashboard UI design.
+- Redux Toolkit for efficient state management.
+- Socket.IO(WebSocket) for real-time messaging and notifications.
+- Django REST API for backend authentication(Simple JWT) and user management.
+- Redis as message broker.
+- PostgreSQL for relational database structure and storage.
 
 ## Technologies Used
 
