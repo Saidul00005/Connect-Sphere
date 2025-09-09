@@ -14,6 +14,14 @@ This repository contains the codebase for Connect Sphere Website.This is a scala
 - Employee approval process with 'Approval Pending' status before access.
 - Admin panel for managing whole Connect Sphere application works.
 
+## Technologies Used
+
+- **Frontend**: Next.js with App Router, Shadcn for design
+- **Backend**: Python Django for REST API, Express.js with Socket.IO for Websocket, Redis as message broker
+- **Database**: PostgreSQL with Django ORM, Key-value database for Redis
+- **Authentication**: NextAuth (JWT-based authentication)(Frontend), Simple JWT (Django Rest Framework)(Backend)
+- **State Management**: Redux Toolkit
+
 ## Technical Overview
 
 - Next.js App Router for scalable frontend routing.
@@ -23,14 +31,6 @@ This repository contains the codebase for Connect Sphere Website.This is a scala
 - Django REST API for backend authentication(Simple JWT) and user management.
 - Redis as message broker.
 - PostgreSQL for relational database structure and storage.
-
-## Technologies Used
-
-- **Frontend**: Next.js with App Router, Shadcn for design
-- **Backend**: Python Django for REST API, Express.js with Socket.IO for Websocket, Redis as message broker
-- **Database**: PostgreSQL with Django ORM, Key-value database for Redis
-- **Authentication**: NextAuth (JWT-based authentication)(Frontend), Simple JWT (Django Rest Framework)(Backend)
-- **State Management**: Redux Toolkit
 
 ## Getting Started
 
