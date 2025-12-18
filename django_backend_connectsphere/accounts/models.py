@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.conf import settings
+from .managers import CustomUserManager
 
 class Role(models.Model):
     ROLE_CHOICES = [
@@ -26,6 +27,7 @@ class User(AbstractUser):
     is_active = models.BooleanField(default=True)
     profile_picture = models.ImageField(upload_to='profile_pics/', null=True, blank=True)
     is_deleted = models.BooleanField(default=False)
+    objects = CustomUserManager()
     
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'first_name', 'last_name','role']
